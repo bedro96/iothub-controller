@@ -1,35 +1,63 @@
 # IoTHub Controller
 
-A modern IoT device management system built with Next.js 16, featuring user authentication, role-based access control, and a dark mode toggle.
+A production-ready IoT Hub Management System built with Next.js 16, featuring JWT authentication, WebSocket support, device management, system monitoring, and comprehensive logging.
 
-## Features
+## 🚀 Features
 
-- **Next.js 16** with App Router
-- **Authentication System**: Sign up and login functionality
-- **User Management**: Admin panel for managing users
-- **Dark Mode**: Toggle between light and dark themes
-- **MongoDB with Prisma**: Database integration for user data
-- **Shadcn UI + Tailwind CSS**: Modern, accessible UI components
+### Authentication & Security
+- ✅ JWT-based session management with HTTP-only cookies
+- ✅ Secure password hashing with bcryptjs
+- ✅ Password reset with time-limited tokens
+- ✅ Rate limiting with configurable windows and allowlist
+- ✅ CSRF protection with exception management
+- ✅ Role-based access control (Admin/User)
+- ✅ Session management with database storage
 
-## Tech Stack
+### Device Management
+- ✅ Full CRUD operations for IoT devices
+- ✅ Real-time device status updates via WebSocket
+- ✅ Device metadata storage
+- ✅ Last-seen timestamps
+- ✅ User-specific device filtering
 
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- Shadcn UI components
-- Prisma ORM
-- MongoDB
-- bcryptjs for password hashing
-- next-themes for dark mode
+### Monitoring & Logging
+- ✅ System statistics dashboard
+- ✅ Real-time log viewer (Application/Error/HTTP logs)
+- ✅ Winston with daily rotating file logs
+- ✅ Audit log database with searchable history
+- ✅ Auto-refresh monitoring (30-second intervals)
 
-## Prerequisites
+### WebSocket Support
+- ✅ Socket.IO integration with Next.js
+- ✅ JWT-based WebSocket authentication
+- ✅ Per-user room management
+- ✅ Real-time device data broadcasting
+- ✅ Device status updates
+
+### UI/UX
+- ✅ Dark mode toggle with next-themes
+- ✅ Shadcn UI + Tailwind CSS components
+- ✅ Responsive design
+- ✅ Consistent navigation across pages
+
+## 📋 Tech Stack
+
+- **Framework:** Next.js 16.1.6 with App Router
+- **Language:** TypeScript
+- **Database:** MongoDB with Prisma ORM
+- **Authentication:** JWT with jose library
+- **WebSocket:** Socket.IO
+- **Logging:** Winston with daily-rotate-file
+- **Styling:** Tailwind CSS v3 + Shadcn UI
+- **Security:** bcryptjs, rate-limit, CSRF protection
+
+## 🛠️ Prerequisites
 
 - Node.js 18+ 
-- MongoDB instance (local or cloud)
+- MongoDB instance (local or Atlas)
 - npm or yarn
 
-## Getting Started
+## 📦 Installation
 
 1. **Clone the repository**
    ```bash
@@ -44,24 +72,23 @@ A modern IoT device management system built with Next.js 16, featuring user auth
 
 3. **Set up environment variables**
    
-   Create a `.env` file in the root directory:
+   Copy `.env.example` to `.env` and configure:
    ```env
    DATABASE_URL="mongodb://localhost:27017/iothub-controller"
-   # Or use MongoDB Atlas:
-   # DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/iothub-controller"
-   
-   NEXTAUTH_URL="http://localhost:3000"
-   NEXTAUTH_SECRET="your-secret-key-change-this-in-production"
+   JWT_SECRET="your-secure-jwt-secret-key"
+   INTERNAL_SERVICE_TOKEN="your-internal-service-token"
+   NODE_ENV="development"
+   LOG_LEVEL="info"
    ```
 
 4. **Generate Prisma Client**
    ```bash
-   npx prisma generate
+   npm run db:generate
    ```
 
-5. **Push database schema** (for MongoDB)
+5. **Initialize database**
    ```bash
-   npx prisma db push
+   npm run db:init
    ```
 
 6. **Run the development server**
@@ -70,75 +97,249 @@ A modern IoT device management system built with Next.js 16, featuring user auth
    ```
 
 7. **Open your browser**
-   
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## Project Structure
+## 🔑 Environment Variables
 
+### Required
+- `DATABASE_URL` - MongoDB connection string
+- `JWT_SECRET` - Secret key for JWT token signing
+
+### Optional
+- `INTERNAL_SERVICE_TOKEN` - Token for bypassing rate limits
+- `NODE_ENV` - Environment (development/production)
+- `LOG_LEVEL` - Logging level (error/warn/info/http/debug)
+- `PORT` - Server port (default: 3000)
+
+## 📖 API Documentation
+
+### Authentication Endpoints
+
+#### Sign Up
 ```
-├── app/
-│   ├── api/
-│   │   ├── auth/
-│   │   │   ├── login/
-│   │   │   └── signup/
-│   │   └── users/
-│   ├── admin/          # Admin user management page
-│   ├── login/          # Login page
-│   ├── signup/         # Sign up page
-│   ├── layout.tsx      # Root layout with theme provider
-│   └── page.tsx        # Home page
-├── components/
-│   ├── ui/             # Shadcn UI components
-│   ├── mode-toggle.tsx # Dark mode toggle
-│   └── theme-provider.tsx
-├── lib/
-│   ├── prisma.ts       # Prisma client instance
-│   └── utils.ts        # Utility functions
-└── prisma/
-    └── schema.prisma   # Database schema
+POST /api/auth/signup
+Body: { username, email, password }
 ```
 
-## Usage
-
-### Sign Up
-1. Navigate to `/signup`
-2. Enter username, email, and password
-3. Submit to create a new account
-
-### Login
-1. Navigate to `/login`
-2. Enter your email and password
-3. You'll be redirected based on your role (admin → `/admin`, user → `/`)
-
-### Admin Panel
-1. Login with an admin account
-2. Navigate to `/admin`
-3. View all users, change roles, or delete users
-
-### Dark Mode
-- Click the moon/sun icon in the top right to toggle between light and dark themes
-- The theme preference is saved automatically
-
-## Database Schema
-
-### User Model
-```prisma
-model User {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  username  String   @unique
-  email     String   @unique
-  password  String
-  role      String   @default("user")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+#### Login
+```
+POST /api/auth/login
+Body: { email, password }
+Returns: Session cookie
 ```
 
-## Creating an Admin User
+#### Logout
+```
+POST /api/auth/logout
+Requires: Valid session
+```
 
-To create an admin user, you can:
+#### Get Current Session
+```
+GET /api/auth/me
+Requires: Valid session
+Returns: { user: { userId, email, role } }
+```
 
-1. Sign up normally and update the user role in MongoDB:
+#### Password Reset Request
+```
+POST /api/auth/password-reset
+Body: { email }
+```
+
+#### Password Reset Confirm
+```
+PATCH /api/auth/password-reset
+Body: { token, newPassword }
+```
+
+### Device Endpoints
+
+#### Get Devices
+```
+GET /api/devices
+Requires: Authentication
+Returns: Array of user's devices
+```
+
+#### Create Device
+```
+POST /api/devices
+Body: { name, type, metadata? }
+Requires: Authentication
+```
+
+#### Update Device
+```
+PATCH /api/devices
+Body: { id, name?, type?, status?, metadata? }
+Requires: Authentication
+```
+
+#### Delete Device
+```
+DELETE /api/devices?id={deviceId}
+Requires: Authentication
+```
+
+### User Management (Admin Only)
+
+#### Get All Users
+```
+GET /api/users
+Requires: Admin role
+```
+
+#### Update User Role
+```
+PATCH /api/users
+Body: { id, role }
+Requires: Admin role
+```
+
+#### Delete User
+```
+DELETE /api/users?id={userId}
+Requires: Admin role
+```
+
+### Monitoring (Admin Only)
+
+#### Get Logs
+```
+GET /api/monitoring?type={application|error|http}&lines={number}
+Requires: Admin role
+```
+
+#### Get Statistics
+```
+POST /api/monitoring
+Requires: Admin role
+Returns: { stats, recentAuditLogs }
+```
+
+## 🔌 WebSocket API
+
+### Connection
+```javascript
+import { io } from 'socket.io-client';
+
+const socket = io({
+  path: '/socket',
+  auth: {
+    token: 'your-jwt-token' // Get from /api/auth/login
+  }
+});
+```
+
+### Events
+
+#### device:status (Client → Server)
+Update device status
+```javascript
+socket.emit('device:status', {
+  deviceId: 'device-id',
+  status: 'online' | 'offline'
+});
+```
+
+#### device:data (Client → Server)
+Send device data
+```javascript
+socket.emit('device:data', {
+  deviceId: 'device-id',
+  payload: { /* your device data */ }
+});
+```
+
+#### device:status:updated (Server → Client)
+Receive device status updates
+```javascript
+socket.on('device:status:updated', (data) => {
+  // data: { deviceId, status, lastSeen }
+});
+```
+
+#### device:data:received (Server → Client)
+Receive device data
+```javascript
+socket.on('device:data:received', (data) => {
+  // data: { deviceId, payload, timestamp }
+});
+```
+
+## 🛡️ Security Configuration
+
+### Rate Limiting
+
+Configure in `lib/rate-limit.ts`:
+```typescript
+// Add IP to allowlist
+import { addToAllowlist } from '@/lib/rate-limit';
+addToAllowlist('192.168.1.1');
+
+// Get current allowlist
+import { getAllowlist } from '@/lib/rate-limit';
+const allowedIPs = getAllowlist();
+```
+
+### CSRF Protection
+
+Configure in `lib/csrf.ts`:
+```typescript
+// Add route exception
+import { addCSRFException } from '@/lib/csrf';
+addCSRFException('/api/webhook/custom');
+
+// Remove exception
+import { removeCSRFException } from '@/lib/csrf';
+removeCSRFException('/api/webhook/custom');
+
+// Get all exceptions
+import { getCSRFExceptions } from '@/lib/csrf';
+const exceptions = getCSRFExceptions();
+```
+
+## 📊 Logging
+
+Logs are stored in the `logs/` directory with automatic rotation:
+
+- `application-YYYY-MM-DD.log` - All logs (14 days retention)
+- `error-YYYY-MM-DD.log` - Error logs only (30 days retention)
+- `http-YYYY-MM-DD.log` - HTTP request logs (7 days retention)
+
+### Log Levels
+- `error` - Error messages
+- `warn` - Warning messages
+- `info` - Informational messages
+- `http` - HTTP request logs
+- `debug` - Debug messages
+
+## 🧪 Scripts
+
+```bash
+npm run dev          # Start development server with WebSocket
+npm run build        # Build for production
+npm start            # Start production server
+npm run lint         # Run ESLint
+npm run db:generate  # Generate Prisma client
+npm run db:push      # Push schema to database
+npm run db:init      # Initialize database collections
+```
+
+## 📱 Pages
+
+- `/` - Home page with navigation
+- `/signup` - User registration
+- `/login` - User authentication
+- `/devices` - Device management (authenticated)
+- `/admin` - User management (admin only)
+- `/monitoring` - System monitoring dashboard (admin only)
+
+## 🔧 Creating an Admin User
+
+1. Sign up normally at `/signup`
+2. Connect to MongoDB and run:
    ```javascript
    db.User.updateOne(
      { email: "admin@example.com" },
@@ -146,67 +347,58 @@ To create an admin user, you can:
    )
    ```
 
-2. Or modify the signup API to accept a role parameter (not recommended for production)
+## 🚀 Production Deployment
 
-## Scripts
+1. Set `NODE_ENV=production` in environment
+2. Use a strong `JWT_SECRET` (minimum 32 characters)
+3. Configure MongoDB Atlas or secure MongoDB instance
+4. Enable HTTPS (required for secure cookies)
+5. Set up a process manager like PM2
+6. Configure a reverse proxy (nginx/Apache)
+7. Set up log aggregation and monitoring
+8. Enable automated backups
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
+### PM2 Example
+```javascript
+// ecosystem.config.js
+module.exports = {
+  apps: [{
+    name: 'iothub-controller',
+    script: './server.ts',
+    interpreter: 'tsx',
+    instances: 'max',
+    exec_mode: 'cluster',
+    env_production: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    }
+  }]
+};
+```
 
-## Security Notes
+Run with: `pm2 start ecosystem.config.js --env production`
 
-⚠️ **Important: This implementation uses a simplified authentication approach for demonstration purposes.**
+## 🐛 Troubleshooting
 
-### Current Implementation
-- Passwords are hashed using bcryptjs before storing in the database
-- User information is stored in localStorage (client-side)
-- API routes have basic authorization checks using request headers
+### WebSocket Issues
+- Ensure the custom server (`server.ts`) is running
+- Check JWT token validity
+- Verify firewall allows WebSocket connections
 
-### Production Recommendations
+### Database Connection
+- Verify MongoDB is accessible
+- Check DATABASE_URL format
+- Ensure IP allowlist is configured (MongoDB Atlas)
 
-For a production environment, you **MUST** implement proper security measures:
+### Rate Limiting
+- Check if IP is in allowlist for exceptions
+- Verify `INTERNAL_SERVICE_TOKEN` for service calls
+- Review rate limit configuration
 
-1. **Session Management**
-   - Replace localStorage with HTTP-only cookies
-   - Implement JWT tokens or use NextAuth.js for complete authentication
-   - Add session expiration and refresh tokens
-
-2. **API Security**
-   - Implement proper middleware for authentication/authorization
-   - Use secure session tokens instead of passing email in headers
-   - Add CSRF protection
-   - Implement rate limiting to prevent brute force attacks
-
-3. **General Security**
-   - Use HTTPS for all connections
-   - Validate and sanitize all user inputs
-   - Add proper error handling without exposing sensitive information
-   - Use environment-specific secrets (never commit secrets to git)
-   - Add logging and monitoring for security events
-   - Implement account lockout after failed login attempts
-   - Add email verification for new accounts
-   - Implement password reset functionality with secure tokens
-
-4. **Database Security**
-   - Use connection pooling
-   - Implement proper access controls
-   - Enable audit logging
-   - Regular backups
-
-### Current Limitations
-
-This demo implementation has the following known limitations:
-- Client-side authentication can be bypassed by modifying localStorage
-- No session expiration or token refresh
-- Basic authorization checks (not production-ready)
-- No email verification
-- No password reset functionality
-- No account lockout mechanism
-
-**For production use, consider using a complete authentication solution like [NextAuth.js](https://next-auth.js.org/) which handles most of these concerns.**
-
-## License
+## 📝 License
 
 MIT
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
