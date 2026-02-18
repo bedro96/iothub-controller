@@ -80,8 +80,9 @@ export default function IoTDashboardPage() {
   const onlineDevices = devices.filter(d => d.status === "online").length
   const offlineDevices = devices.filter(d => d.status === "offline").length
   const warningDevices = devices.filter(d => d.status === "warning").length
-  const avgTemperature = devices.filter(d => d.status !== "offline").reduce((acc, d) => acc + d.temperature, 0) / Math.max(devices.filter(d => d.status !== "offline").length, 1)
-  const avgCpu = devices.filter(d => d.status !== "offline").reduce((acc, d) => acc + d.cpu, 0) / Math.max(devices.filter(d => d.status !== "offline").length, 1)
+  const activeDevices = devices.filter(d => d.status !== "offline")
+  const avgTemperature = activeDevices.reduce((acc, d) => acc + d.temperature, 0) / Math.max(activeDevices.length, 1)
+  const avgCpu = activeDevices.reduce((acc, d) => acc + d.cpu, 0) / Math.max(activeDevices.length, 1)
 
   const getStatusColor = (status: string) => {
     switch (status) {

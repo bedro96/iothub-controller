@@ -32,6 +32,12 @@ export default function IoTSettingsPage() {
     websocketPort: "8080",
   })
 
+  const [securitySettings, setSecuritySettings] = useState({
+    enableSSL: true,
+    enableAuth: true,
+    enableLogging: true,
+  })
+
   const [saved, setSaved] = useState(false)
 
   const handleSaveSettings = () => {
@@ -60,6 +66,11 @@ export default function IoTSettingsPage() {
         mqttUsername: "iot_user",
         mqttPassword: "••••••••",
         websocketPort: "8080",
+      })
+      setSecuritySettings({
+        enableSSL: true,
+        enableAuth: true,
+        enableLogging: true,
       })
     }
   }
@@ -344,7 +355,10 @@ export default function IoTSettingsPage() {
                   <input
                     type="checkbox"
                     id="enableSSL"
-                    defaultChecked={true}
+                    checked={securitySettings.enableSSL}
+                    onChange={(e) =>
+                      setSecuritySettings({ ...securitySettings, enableSSL: e.target.checked })
+                    }
                     className="h-4 w-4"
                   />
                   <Label htmlFor="enableSSL" className="cursor-pointer">
@@ -355,7 +369,10 @@ export default function IoTSettingsPage() {
                   <input
                     type="checkbox"
                     id="enableAuth"
-                    defaultChecked={true}
+                    checked={securitySettings.enableAuth}
+                    onChange={(e) =>
+                      setSecuritySettings({ ...securitySettings, enableAuth: e.target.checked })
+                    }
                     className="h-4 w-4"
                   />
                   <Label htmlFor="enableAuth" className="cursor-pointer">
@@ -366,7 +383,10 @@ export default function IoTSettingsPage() {
                   <input
                     type="checkbox"
                     id="enableLogging"
-                    defaultChecked={true}
+                    checked={securitySettings.enableLogging}
+                    onChange={(e) =>
+                      setSecuritySettings({ ...securitySettings, enableLogging: e.target.checked })
+                    }
                     className="h-4 w-4"
                   />
                   <Label htmlFor="enableLogging" className="cursor-pointer">
