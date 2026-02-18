@@ -1,0 +1,4 @@
+{"email":"kunho.ko@gmail.com","level":"info","message":"User signed up","timestamp":"2026-02-18 14:36:56","userId":"6995ce870bdfea22fd23cedd"}
+{"action":"user.signup","level":"info","message":"Audit Event","timestamp":"2026-02-18 14:36:56","userEmail":"kunho.ko@gmail.com","userId":"6995ce870bdfea22fd23cedd"}
+{"email":"kunho.ko@gmail.com","level":"info","message":"User logged in","timestamp":"2026-02-18 15:00:48","userId":"6995ce870bdfea22fd23cedd"}
+{"action":"user.login","level":"info","message":"Audit Event","timestamp":"2026-02-18 15:00:48","userEmail":"kunho.ko@gmail.com","userId":"6995ce870bdfea22fd23cedd"}

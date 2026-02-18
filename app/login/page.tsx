@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,7 @@ export default function LoginPage() {
   })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [csrfToken, setCsrfToken] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,11 +32,17 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      }
+
+      if (csrfToken) {
+        headers['x-csrf-token'] = csrfToken
+      }
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(formData),
         credentials: "include",
       })
@@ -59,6 +66,23 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const res = await fetch('/api/auth/csrf', { credentials: 'include' })
+        if (!mounted) return
+        if (res.ok) {
+          const data = await res.json()
+          setCsrfToken(data.csrfToken || null)
+        }
+      } catch (err) {
+        // ignore CSRF fetch errors; login will fail with proper error if needed
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">

@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "/home/azureuser/iothub-controller/logs/.7a179e11afc06dc64cfd9ba291b6b55423bb3c18-audit.json",
+    "files": [
+        {
+            "date": 1771424177083,
+            "name": "/home/azureuser/iothub-controller/logs/error-2026-02-18.log",
+            "hash": "55b24b1af28c050f7f781b91801ab0fb366eafc7a8c8756e4e7a93d82f043988"
+        }
+    ],
+    "hashType": "sha256"
+}
