@@ -23,7 +23,8 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}) {
   
   return async (request: NextRequest) => {
     // Get client identifier (IP address)
-    const identifier = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+    // Note: NextRequest.ip is not in types but exists at runtime in some environments
+    const identifier = (request as any).ip || request.headers.get('x-forwarded-for') || 'unknown';
     const key = `ratelimit:${identifier}:${request.nextUrl.pathname}`;
     
     const now = Date.now();
@@ -75,7 +76,8 @@ export function cleanupRateLimitStore() {
 }
 
 // Clean up every 5 minutes
-if (typeof window === 'undefined') {
+// Only run in server environment (Node.js has 'process' but browsers don't)
+if (typeof process !== 'undefined' && process.versions && process.versions.node) {
   setInterval(cleanupRateLimitStore, 5 * 60 * 1000);
 }
 
@@ -112,7 +114,8 @@ const rateLimitAllowlist = new Set<string>([
  * Check if request should bypass rate limiting
  */
 export function shouldBypassRateLimit(request: NextRequest): boolean {
-  const ip = request.ip || request.headers.get('x-forwarded-for');
+  // Note: NextRequest.ip is not in types but exists at runtime in some environments
+  const ip = (request as any).ip || request.headers.get('x-forwarded-for');
   
   // Check IP allowlist
   if (ip && rateLimitAllowlist.has(ip)) {

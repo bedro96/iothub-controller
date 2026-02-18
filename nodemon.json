@@ -1,0 +1,5 @@
+{
+  "watch": ["server.ts", "lib/**/*.ts"],
+  "exec": "tsc --project tsconfig.server.json && node dist/server.js",
+  "ext": "js ts"
+}

@@ -1,5 +1,4 @@
 import { SignJWT, jwtVerify } from 'jose';
-import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
 
@@ -35,7 +34,22 @@ export async function createToken(payload: SessionPayload): Promise<string> {
 export async function verifyToken(token: string): Promise<SessionPayload | null> {
   try {
     const verified = await jwtVerify(token, JWT_SECRET);
-    return verified.payload as SessionPayload;
+    const payload = verified.payload;
+    
+    // Validate that payload has required fields
+    if (
+      typeof payload.userId === 'string' &&
+      typeof payload.email === 'string' &&
+      typeof payload.role === 'string'
+    ) {
+      return {
+        userId: payload.userId,
+        email: payload.email,
+        role: payload.role,
+      };
+    }
+    
+    return null;
   } catch {
     return null;
   }
@@ -59,6 +73,7 @@ export async function createSession(userId: string, email: string, role: string)
   });
   
   // Set HTTP-only cookie
+  const { cookies } = await import('next/headers');
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
@@ -75,6 +90,7 @@ export async function createSession(userId: string, email: string, role: string)
  * Get current session from cookie
  */
 export async function getSession(): Promise<SessionPayload | null> {
+  const { cookies } = await import('next/headers');
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
   
@@ -106,6 +122,7 @@ export async function getSession(): Promise<SessionPayload | null> {
  * Destroy current session
  */
 export async function destroySession() {
+  const { cookies } = await import('next/headers');
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
   

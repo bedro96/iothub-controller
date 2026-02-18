@@ -155,8 +155,8 @@ export const logAudit = async (
         data: {
           action,
           userId,
-          userEmail: metadata?.userEmail,
-          ipAddress: metadata?.ipAddress,
+          userEmail: typeof metadata?.userEmail === 'string' ? metadata.userEmail : null,
+          ipAddress: typeof metadata?.ipAddress === 'string' ? metadata.ipAddress : null,
           metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : null,
         },
       });
