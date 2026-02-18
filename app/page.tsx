@@ -8,16 +8,15 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { LogOut } from "lucide-react"
 
 type User = {
-  id: string
-  username: string
+  userId: string
   email: string
   role: string
 }
 
-function getUserFromStorage(): User | null {
-  if (typeof window === 'undefined') return null
-  const userStr = localStorage.getItem("user")
-  return userStr ? JSON.parse(userStr) : null
+function getUserFromSession(): Promise<User | null> {
+  return fetch('/api/auth/me', { credentials: 'include' })
+    .then(res => res.ok ? res.json().then(data => data.user) : null)
+    .catch(() => null)
 }
 
 export default function Home() {
@@ -25,12 +24,11 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUser(getUserFromStorage())
+    getUserFromSession().then(setUser)
   }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem("user")
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
     setUser(null)
     router.push("/login")
   }
@@ -47,12 +45,20 @@ export default function Home() {
               {user ? (
                 <>
                   <span className="text-sm text-muted-foreground">
-                    Welcome, {user.username}
+                    Welcome, {user.email}
                   </span>
+                  <Button variant="outline" asChild>
+                    <Link href="/devices">My Devices</Link>
+                  </Button>
                   {user.role === "admin" && (
-                    <Button variant="outline" asChild>
-                      <Link href="/admin">Admin Panel</Link>
-                    </Button>
+                    <>
+                      <Button variant="outline" asChild>
+                        <Link href="/admin">Admin Panel</Link>
+                      </Button>
+                      <Button variant="outline" asChild>
+                        <Link href="/monitoring">Monitoring</Link>
+                      </Button>
+                    </>
                   )}
                   <Button onClick={handleLogout} variant="outline">
                     <LogOut className="mr-2 h-4 w-4" />

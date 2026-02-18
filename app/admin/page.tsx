@@ -29,35 +29,17 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
-  useEffect(() => {
-    // WARNING: Client-side role checking is not secure
-    // This is just for UI purposes. Real authorization happens on the server
-    // See API routes for server-side authorization checks
-    const userStr = localStorage.getItem("user")
-    if (!userStr) {
-      router.push("/login")
-      return
-    }
-
-    const user = JSON.parse(userStr)
-    if (user.role !== "admin") {
-      router.push("/")
-      return
-    }
-
-    fetchUsers()
-  }, [router])
-
   const fetchUsers = async () => {
     try {
-      const userStr = localStorage.getItem("user")
-      const user = userStr ? JSON.parse(userStr) : null
-      
       const response = await fetch("/api/users", {
-        headers: {
-          "x-user-email": user?.email || "",
-        },
+        credentials: "include",
       })
+      
+      if (response.status === 401 || response.status === 403) {
+        router.push("/login")
+        return
+      }
+      
       const data = await response.json()
 
       if (!response.ok) {
@@ -72,20 +54,20 @@ export default function AdminPage() {
     }
   }
 
+  useEffect(() => {
+    fetchUsers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const handleDeleteUser = async (userId: string) => {
     if (!confirm("Are you sure you want to delete this user?")) {
       return
     }
 
     try {
-      const userStr = localStorage.getItem("user")
-      const user = userStr ? JSON.parse(userStr) : null
-      
       const response = await fetch(`/api/users?id=${userId}`, {
         method: "DELETE",
-        headers: {
-          "x-user-email": user?.email || "",
-        },
+        credentials: "include",
       })
 
       if (!response.ok) {
@@ -103,16 +85,13 @@ export default function AdminPage() {
     const newRole = currentRole === "admin" ? "user" : "admin"
 
     try {
-      const userStr = localStorage.getItem("user")
-      const user = userStr ? JSON.parse(userStr) : null
-      
       const response = await fetch("/api/users", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-email": user?.email || "",
         },
         body: JSON.stringify({ id: userId, role: newRole }),
+        credentials: "include",
       })
 
       if (!response.ok) {
@@ -130,8 +109,8 @@ export default function AdminPage() {
     }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("user")
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
     router.push("/login")
   }
 
@@ -149,6 +128,9 @@ export default function AdminPage() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">User Management</h1>
           <div className="flex gap-4">
+            <Button variant="outline" onClick={() => router.push("/monitoring")}>
+              Monitoring
+            </Button>
             <ModeToggle />
             <Button onClick={handleLogout} variant="outline">
               <LogOut className="mr-2 h-4 w-4" />

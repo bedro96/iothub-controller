@@ -37,6 +37,7 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
+        credentials: "include",
       })
 
       const data = await response.json()
@@ -45,12 +46,7 @@ export default function LoginPage() {
         throw new Error(data.error || "Failed to login")
       }
 
-      // Store the user data
-      // WARNING: This is a simplified demo implementation
-      // In production, use secure session management with HTTP-only cookies
-      // and proper JWT tokens instead of localStorage
-      localStorage.setItem("user", JSON.stringify(data.user))
-      
+      // Session is now stored in HTTP-only cookie
       // Redirect based on role
       if (data.user.role === "admin") {
         router.push("/admin")
