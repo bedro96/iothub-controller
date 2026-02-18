@@ -7,15 +7,26 @@ import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { LogOut } from "lucide-react"
 
+type User = {
+  id: string
+  username: string
+  email: string
+  role: string
+}
+
+function getUserFromStorage(): User | null {
+  if (typeof window === 'undefined') return null
+  const userStr = localStorage.getItem("user")
+  return userStr ? JSON.parse(userStr) : null
+}
+
 export default function Home() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    const userStr = localStorage.getItem("user")
-    if (userStr) {
-      setUser(JSON.parse(userStr))
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUser(getUserFromStorage())
   }, [])
 
   const handleLogout = () => {

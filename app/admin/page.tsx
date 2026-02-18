@@ -56,8 +56,8 @@ export default function AdminPage() {
       }
 
       setUsers(data.users)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
       setLoading(false)
     }
@@ -79,8 +79,8 @@ export default function AdminPage() {
       }
 
       setUsers(users.filter((user) => user.id !== userId))
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "An error occurred")
     }
   }
 
@@ -106,8 +106,8 @@ export default function AdminPage() {
           user.id === userId ? { ...user, role: newRole } : user
         )
       )
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "An error occurred")
     }
   }
 
