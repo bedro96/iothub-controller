@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { createSession } from "@/lib/auth"
+import { logAudit, logInfo } from "@/lib/logger"
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,6 +37,15 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
+
+    // Create session
+    await createSession(user.id, user.email, user.role)
+    
+    logInfo('User logged in', { userId: user.id, email: user.email })
+    await logAudit('user.login', user.id, {
+      userEmail: user.email,
+      ipAddress: request.ip,
+    })
 
     // Remove password from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

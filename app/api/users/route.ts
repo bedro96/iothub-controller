@@ -1,28 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAdmin } from "@/lib/auth"
+import { logAudit } from "@/lib/logger"
 
-// Helper function to get user from request (simplified - in production use proper session management)
-async function getCurrentUser(request: NextRequest) {
-  // In production, validate JWT token or session cookie here
-  // For now, we expect the client to send user info in headers
-  const userEmail = request.headers.get("x-user-email")
-  if (!userEmail) return null
-  
-  return await prisma.user.findUnique({
-    where: { email: userEmail },
-  })
-}
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Verify user is authenticated and is an admin
-    const currentUser = await getCurrentUser(request)
-    if (!currentUser || currentUser.role !== "admin") {
-      return NextResponse.json(
-        { error: "Unauthorized - Admin access required" },
-        { status: 403 }
-      )
-    }
+    await requireAdmin()
 
     const users = await prisma.user.findMany({
       select: {
@@ -30,6 +14,7 @@ export async function GET(request: NextRequest) {
         username: true,
         email: true,
         role: true,
+        emailVerified: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -40,6 +25,20 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ users })
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Unauthorized') {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        )
+      }
+      if (error.message.includes('Forbidden')) {
+        return NextResponse.json(
+          { error: "Forbidden - Admin access required" },
+          { status: 403 }
+        )
+      }
+    }
     console.error("Get users error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
@@ -51,13 +50,7 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Verify user is authenticated and is an admin
-    const currentUser = await getCurrentUser(request)
-    if (!currentUser || currentUser.role !== "admin") {
-      return NextResponse.json(
-        { error: "Unauthorized - Admin access required" },
-        { status: 403 }
-      )
-    }
+    const currentUser = await requireAdmin()
 
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("id")
@@ -70,7 +63,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Prevent admin from deleting themselves
-    if (currentUser.id === userId) {
+    if (currentUser.userId === userId) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
         { status: 400 }
@@ -81,8 +74,27 @@ export async function DELETE(request: NextRequest) {
       where: { id: userId },
     })
 
+    await logAudit('user.deleted', currentUser.userId, {
+      deletedUserId: userId,
+      ipAddress: request.ip,
+    })
+
     return NextResponse.json({ message: "User deleted successfully" })
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Unauthorized') {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        )
+      }
+      if (error.message.includes('Forbidden')) {
+        return NextResponse.json(
+          { error: "Forbidden - Admin access required" },
+          { status: 403 }
+        )
+      }
+    }
     console.error("Delete user error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
@@ -94,13 +106,7 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     // Verify user is authenticated and is an admin
-    const currentUser = await getCurrentUser(request)
-    if (!currentUser || currentUser.role !== "admin") {
-      return NextResponse.json(
-        { error: "Unauthorized - Admin access required" },
-        { status: 403 }
-      )
-    }
+    const currentUser = await requireAdmin()
 
     const { id, role } = await request.json()
 
@@ -112,7 +118,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Prevent admin from changing their own role
-    if (currentUser.id === id) {
+    if (currentUser.userId === id) {
       return NextResponse.json(
         { error: "Cannot modify your own role" },
         { status: 400 }
@@ -132,8 +138,28 @@ export async function PATCH(request: NextRequest) {
       },
     })
 
+    await logAudit('user.role_updated', currentUser.userId, {
+      updatedUserId: id,
+      newRole: role,
+      ipAddress: request.ip,
+    })
+
     return NextResponse.json({ message: "User updated successfully", user })
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Unauthorized') {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        )
+      }
+      if (error.message.includes('Forbidden')) {
+        return NextResponse.json(
+          { error: "Forbidden - Admin access required" },
+          { status: 403 }
+        )
+      }
+    }
     console.error("Update user error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
