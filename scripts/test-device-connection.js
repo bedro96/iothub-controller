@@ -9,7 +9,9 @@
 
 const WebSocket = require('ws');
 
-const uuid = process.argv[2] || 'test-device-' + Math.random().toString(36).substring(7);
+const { randomUUID } = require('crypto');
+
+const uuid = process.argv[2] || randomUUID();
 const wsUrl = process.env.WS_URL || 'ws://localhost:3000';
 const endpoint = `${wsUrl}/ws/${uuid}`;
 

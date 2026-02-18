@@ -68,18 +68,18 @@ export async function POST(
       )
     );
 
-    // Create mappings
-    for (const device of createdDevices) {
-      if (device.uuid) {
-        await prisma.deviceMapping.create({
-          data: {
-            uuid: device.uuid,
-            deviceId: device.id,
-            userId: user.id,
-          },
-        });
-      }
-    }
+    // Create mappings in batch
+    const mappingData = createdDevices
+      .filter(device => device.uuid)
+      .map(device => ({
+        uuid: device.uuid!,
+        deviceId: device.id,
+        userId: user.id,
+      }));
+
+    await prisma.deviceMapping.createMany({
+      data: mappingData,
+    });
 
     return NextResponse.json({
       message: `Successfully generated ${numberOfDevices} devices`,

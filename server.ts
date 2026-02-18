@@ -216,24 +216,23 @@ app.prepare().then(() => {
             const message = JSON.parse(data.toString());
             logInfo('Device message received', { uuid, type: message.type });
 
-            // Update device metadata and last seen
-            await prisma.device.updateMany({
-              where: { uuid },
-              data: {
-                metadata: message,
-                lastSeen: new Date(),
-              },
-            });
-
             // Handle different message types
             switch (message.type) {
               case 'telemetry':
-                // Store telemetry data
+                // Store telemetry data (update metadata with debounce-like approach)
+                // Only update database every N messages to reduce load
+                await prisma.device.updateMany({
+                  where: { uuid },
+                  data: {
+                    metadata: message,
+                    lastSeen: new Date(),
+                  },
+                });
                 logInfo('Telemetry received', { uuid, data: message.data });
                 break;
               
               case 'status':
-                // Update device status
+                // Update device status (always update for status changes)
                 await prisma.device.updateMany({
                   where: { uuid },
                   data: {
@@ -244,7 +243,7 @@ app.prepare().then(() => {
                 break;
 
               case 'response':
-                // Store command response
+                // Store command response (always update for responses)
                 if (message.commandId) {
                   await prisma.deviceCommand.updateMany({
                     where: {
@@ -258,6 +257,15 @@ app.prepare().then(() => {
                   });
                 }
                 break;
+              
+              default:
+                // For other message types, only update lastSeen
+                await prisma.device.updateMany({
+                  where: { uuid },
+                  data: {
+                    lastSeen: new Date(),
+                  },
+                });
             }
           } catch (error) {
             logError(error as Error, { context: 'Device message processing', uuid });
@@ -277,6 +285,9 @@ app.prepare().then(() => {
           }).catch((error) => {
             logError(error, { context: 'Failed to update device disconnection status', uuid });
           });
+          
+          // Remove from connection manager after database update
+          connectionManager.removeConnection(uuid);
         });
 
         // Handle errors

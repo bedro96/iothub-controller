@@ -45,10 +45,10 @@ export class ConnectionManager {
       this.removeConnection(uuid);
     });
 
-    // Handle errors
+    // Handle errors (also removes connection but doesn't duplicate removal)
     ws.on('error', (error) => {
       logError(error, { context: 'WebSocket error', uuid });
-      this.removeConnection(uuid);
+      // Don't call removeConnection here as 'close' will also fire
     });
 
     // Update last activity on message
