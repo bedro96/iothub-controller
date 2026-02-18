@@ -53,11 +53,15 @@ model Device {
   type        String
   status      String   @default("offline")
   userId      String   @db.ObjectId
+  uuid        String?  @unique
+  connectionStatus String @default("disconnected")
   metadata    Json?
   lastSeen    DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceMappings DeviceMapping[]
+  deviceCommands DeviceCommand[]
   
   @@index([userId])
   @@index([status])
@@ -74,4 +78,38 @@ model AuditLog {
   
   @@index([userId])
   @@index([createdAt])
+}
+
+model DeviceMapping {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  uuid      String   @unique
+  deviceId  String   @db.ObjectId
+  userId    String   @db.ObjectId
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  @@index([deviceId])
+  @@index([userId])
+}
+
+model DeviceCommand {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  deviceId   String?  @db.ObjectId
+  uuid       String?
+  command    String
+  payload    Json?
+  status     String   @default("pending")
+  broadcast  Boolean  @default(false)
+  userId     String   @db.ObjectId
+  response   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  device     Device?  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  @@index([deviceId])
+  @@index([uuid])
+  @@index([userId])
+  @@index([status])
 }

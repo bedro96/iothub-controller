@@ -41,6 +41,12 @@ async function main() {
     const auditLogCount = await prisma.auditLog.count();
     console.log(`   Audit Logs: ${auditLogCount} records`);
     
+    const deviceMappingCount = await prisma.deviceMapping.count();
+    console.log(`   Device Mappings: ${deviceMappingCount} records`);
+    
+    const deviceCommandCount = await prisma.deviceCommand.count();
+    console.log(`   Device Commands: ${deviceCommandCount} records`);
+    
     console.log('\n✨ Database initialization completed successfully!');
     console.log('\n📝 Collections created:');
     console.log('   - User');
@@ -48,6 +54,8 @@ async function main() {
     console.log('   - PasswordResetToken');
     console.log('   - Device');
     console.log('   - AuditLog');
+    console.log('   - DeviceMapping');
+    console.log('   - DeviceCommand');
     
   } catch (error) {
     console.error('❌ Database initialization failed:', error);

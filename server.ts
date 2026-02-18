@@ -2,9 +2,11 @@ import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
+import { WebSocketServer, WebSocket } from 'ws';
 import { verifyToken } from './lib/auth';
 import { prisma } from './lib/prisma';
 import { logInfo, logError } from './lib/logger';
+import { connectionManager } from './lib/connection-manager';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
@@ -17,6 +19,13 @@ app.prepare().then(() => {
   const server = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url!, true);
+      
+      // Handle device WebSocket upgrade requests for /ws/{uuid}
+      if (req.url?.startsWith('/ws/') && req.headers.upgrade?.toLowerCase() === 'websocket') {
+        // Let the WebSocket server handle this
+        return;
+      }
+      
       await handle(req, res, parsedUrl);
     } catch (err) {
       console.error('Error occurred handling', req.url, err);
@@ -160,6 +169,128 @@ app.prepare().then(() => {
     });
   });
 
+  // Initialize WebSocket server for device connections
+  const wss = new WebSocketServer({ noServer: true });
+
+  // Handle WebSocket upgrade for device connections
+  server.on('upgrade', (request, socket, head) => {
+    const url = request.url || '';
+    
+    // Check if this is a device WebSocket connection (/ws/{uuid})
+    if (url.startsWith('/ws/')) {
+      const uuid = url.substring(4); // Extract UUID from /ws/{uuid}
+      
+      if (!uuid) {
+        socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        // Add connection to manager
+        connectionManager.addConnection(uuid, ws);
+
+        // Send welcome message
+        ws.send(JSON.stringify({
+          type: 'connected',
+          uuid,
+          timestamp: new Date().toISOString(),
+        }));
+
+        // Update device connection status in database
+        prisma.device.updateMany({
+          where: { uuid },
+          data: {
+            connectionStatus: 'connected',
+            lastSeen: new Date(),
+          },
+        }).then(() => {
+          logInfo('Device connection status updated', { uuid });
+        }).catch((error) => {
+          logError(error, { context: 'Failed to update device connection status', uuid });
+        });
+
+        // Handle incoming messages
+        ws.on('message', async (data) => {
+          try {
+            const message = JSON.parse(data.toString());
+            logInfo('Device message received', { uuid, type: message.type });
+
+            // Update device metadata and last seen
+            await prisma.device.updateMany({
+              where: { uuid },
+              data: {
+                metadata: message,
+                lastSeen: new Date(),
+              },
+            });
+
+            // Handle different message types
+            switch (message.type) {
+              case 'telemetry':
+                // Store telemetry data
+                logInfo('Telemetry received', { uuid, data: message.data });
+                break;
+              
+              case 'status':
+                // Update device status
+                await prisma.device.updateMany({
+                  where: { uuid },
+                  data: {
+                    status: message.status || 'online',
+                    lastSeen: new Date(),
+                  },
+                });
+                break;
+
+              case 'response':
+                // Store command response
+                if (message.commandId) {
+                  await prisma.deviceCommand.updateMany({
+                    where: {
+                      id: message.commandId,
+                      uuid,
+                    },
+                    data: {
+                      status: 'completed',
+                      response: message.data,
+                    },
+                  });
+                }
+                break;
+            }
+          } catch (error) {
+            logError(error as Error, { context: 'Device message processing', uuid });
+          }
+        });
+
+        // Handle connection close
+        ws.on('close', async () => {
+          logInfo('Device WebSocket closed', { uuid });
+          
+          // Update device connection status
+          await prisma.device.updateMany({
+            where: { uuid },
+            data: {
+              connectionStatus: 'disconnected',
+            },
+          }).catch((error) => {
+            logError(error, { context: 'Failed to update device disconnection status', uuid });
+          });
+        });
+
+        // Handle errors
+        ws.on('error', (error) => {
+          logError(error, { context: 'Device WebSocket error', uuid });
+        });
+      });
+    } else {
+      // Not a device WebSocket, destroy the connection
+      socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+      socket.destroy();
+    }
+  });
+
   server.listen(port, () => {
     logInfo(`Server started`, { 
       port, 
@@ -168,5 +299,6 @@ app.prepare().then(() => {
     });
     console.log(`> Ready on http://${hostname}:${port}`);
     console.log(`> WebSocket ready on ws://${hostname}:${port}/socket`);
+    console.log(`> Device WebSocket ready on ws://${hostname}:${port}/ws/{uuid}`);
   });
 });
