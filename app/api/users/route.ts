@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-export async function GET() {
+// Helper function to get user from request (simplified - in production use proper session management)
+async function getCurrentUser(request: NextRequest) {
+  // In production, validate JWT token or session cookie here
+  // For now, we expect the client to send user info in headers
+  const userEmail = request.headers.get("x-user-email")
+  if (!userEmail) return null
+  
+  return await prisma.user.findUnique({
+    where: { email: userEmail },
+  })
+}
+
+export async function GET(request: NextRequest) {
   try {
+    // Verify user is authenticated and is an admin
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser || currentUser.role !== "admin") {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin access required" },
+        { status: 403 }
+      )
+    }
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -29,12 +50,29 @@ export async function GET() {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Verify user is authenticated and is an admin
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser || currentUser.role !== "admin") {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin access required" },
+        { status: 403 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("id")
 
     if (!userId) {
       return NextResponse.json(
         { error: "User ID is required" },
+        { status: 400 }
+      )
+    }
+
+    // Prevent admin from deleting themselves
+    if (currentUser.id === userId) {
+      return NextResponse.json(
+        { error: "Cannot delete your own account" },
         { status: 400 }
       )
     }
@@ -55,11 +93,28 @@ export async function DELETE(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    // Verify user is authenticated and is an admin
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser || currentUser.role !== "admin") {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin access required" },
+        { status: 403 }
+      )
+    }
+
     const { id, role } = await request.json()
 
     if (!id || !role) {
       return NextResponse.json(
         { error: "User ID and role are required" },
+        { status: 400 }
+      )
+    }
+
+    // Prevent admin from changing their own role
+    if (currentUser.id === id) {
+      return NextResponse.json(
+        { error: "Cannot modify your own role" },
         { status: 400 }
       )
     }

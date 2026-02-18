@@ -157,13 +157,55 @@ To create an admin user, you can:
 
 ## Security Notes
 
+⚠️ **Important: This implementation uses a simplified authentication approach for demonstration purposes.**
+
+### Current Implementation
 - Passwords are hashed using bcryptjs before storing in the database
-- In production, ensure you:
-  - Use a strong `NEXTAUTH_SECRET`
-  - Use HTTPS for all connections
-  - Implement proper session management (consider using NextAuth.js)
-  - Add rate limiting to prevent brute force attacks
-  - Validate and sanitize all user inputs
+- User information is stored in localStorage (client-side)
+- API routes have basic authorization checks using request headers
+
+### Production Recommendations
+
+For a production environment, you **MUST** implement proper security measures:
+
+1. **Session Management**
+   - Replace localStorage with HTTP-only cookies
+   - Implement JWT tokens or use NextAuth.js for complete authentication
+   - Add session expiration and refresh tokens
+
+2. **API Security**
+   - Implement proper middleware for authentication/authorization
+   - Use secure session tokens instead of passing email in headers
+   - Add CSRF protection
+   - Implement rate limiting to prevent brute force attacks
+
+3. **General Security**
+   - Use HTTPS for all connections
+   - Validate and sanitize all user inputs
+   - Add proper error handling without exposing sensitive information
+   - Use environment-specific secrets (never commit secrets to git)
+   - Add logging and monitoring for security events
+   - Implement account lockout after failed login attempts
+   - Add email verification for new accounts
+   - Implement password reset functionality with secure tokens
+
+4. **Database Security**
+   - Use connection pooling
+   - Implement proper access controls
+   - Enable audit logging
+   - Regular backups
+
+### Current Limitations
+
+This demo implementation has the following known limitations:
+- Client-side authentication can be bypassed by modifying localStorage
+- No session expiration or token refresh
+- Basic authorization checks (not production-ready)
+- No email verification
+- No password reset functionality
+- No account lockout mechanism
+
+**For production use, consider using a complete authentication solution like [NextAuth.js](https://next-auth.js.org/) which handles most of these concerns.**
 
 ## License
 

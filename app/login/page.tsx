@@ -45,7 +45,10 @@ export default function LoginPage() {
         throw new Error(data.error || "Failed to login")
       }
 
-      // Store the user data (in production, use proper session management)
+      // Store the user data
+      // WARNING: This is a simplified demo implementation
+      // In production, use secure session management with HTTP-only cookies
+      // and proper JWT tokens instead of localStorage
       localStorage.setItem("user", JSON.stringify(data.user))
       
       // Redirect based on role

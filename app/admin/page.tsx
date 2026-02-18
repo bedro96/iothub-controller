@@ -30,7 +30,9 @@ export default function AdminPage() {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    // Check if user is admin
+    // WARNING: Client-side role checking is not secure
+    // This is just for UI purposes. Real authorization happens on the server
+    // See API routes for server-side authorization checks
     const userStr = localStorage.getItem("user")
     if (!userStr) {
       router.push("/login")
@@ -48,7 +50,14 @@ export default function AdminPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/users")
+      const userStr = localStorage.getItem("user")
+      const user = userStr ? JSON.parse(userStr) : null
+      
+      const response = await fetch("/api/users", {
+        headers: {
+          "x-user-email": user?.email || "",
+        },
+      })
       const data = await response.json()
 
       if (!response.ok) {
@@ -69,8 +78,14 @@ export default function AdminPage() {
     }
 
     try {
+      const userStr = localStorage.getItem("user")
+      const user = userStr ? JSON.parse(userStr) : null
+      
       const response = await fetch(`/api/users?id=${userId}`, {
         method: "DELETE",
+        headers: {
+          "x-user-email": user?.email || "",
+        },
       })
 
       if (!response.ok) {
@@ -88,10 +103,14 @@ export default function AdminPage() {
     const newRole = currentRole === "admin" ? "user" : "admin"
 
     try {
+      const userStr = localStorage.getItem("user")
+      const user = userStr ? JSON.parse(userStr) : null
+      
       const response = await fetch("/api/users", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          "x-user-email": user?.email || "",
         },
         body: JSON.stringify({ id: userId, role: newRole }),
       })
