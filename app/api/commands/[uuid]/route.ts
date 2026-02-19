@@ -70,7 +70,7 @@ export async function POST(
     }
 
     // Generate correlation ID for message tracking
-    const correlationId = crypto.randomUUID();
+    const correlationId = MessageEnvelope.generateUUID();
 
     // Create command record
     const deviceCommand = await prisma.deviceCommand.create({

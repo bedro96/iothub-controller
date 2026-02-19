@@ -252,10 +252,11 @@ app.prepare().then(() => {
                 // This matches Python server's handling of type: "request"
                 try {
                   // Assign a device ID to this UUID (from WebSocket path)
-                  const deviceId = await assignDeviceId(uuid);
+                  // Note: deviceName is the device name string (e.g., 'simdevice0001'), not the database ID
+                  const deviceName = await assignDeviceId(uuid);
                   
                   // Get device configuration
-                  const config = await getDeviceConfiguration(deviceId);
+                  const config = await getDeviceConfiguration(deviceName);
                   
                   // Send response with device configuration
                   const responseEnvelope = MessageEnvelope.createResponse(
@@ -269,7 +270,7 @@ app.prepare().then(() => {
                   
                   logInfo('Device configuration sent', { 
                     uuid, 
-                    deviceId,
+                    deviceName,
                     correlationId: envelope.id,
                   });
                 } catch (error) {
@@ -356,6 +357,17 @@ app.prepare().then(() => {
                 // Update command status in database
                 if (envelope.correlationId) {
                   try {
+                    // Map status to database status values
+                    // 'success' -> 'completed', others (failure, pending, etc.) -> 'failed'
+                    let commandStatus: string;
+                    if (envelope.status === 'success') {
+                      commandStatus = 'completed';
+                    } else if (envelope.status === 'pending') {
+                      commandStatus = 'pending';
+                    } else {
+                      commandStatus = 'failed'; // failure, error, or any other status
+                    }
+
                     // Find command by correlationId (UUID) and update status
                     const updated = await prisma.deviceCommand.updateMany({
                       where: {
@@ -363,7 +375,7 @@ app.prepare().then(() => {
                         correlationId: envelope.correlationId,
                       },
                       data: {
-                        status: envelope.status === 'success' ? 'completed' : 'failed',
+                        status: commandStatus,
                         response: envelope.payload,
                       },
                     });
@@ -373,6 +385,7 @@ app.prepare().then(() => {
                         uuid,
                         correlationId: envelope.correlationId,
                         status: envelope.status,
+                        commandStatus,
                       });
                     }
                   } catch (error) {

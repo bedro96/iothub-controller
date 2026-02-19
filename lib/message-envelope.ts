@@ -156,13 +156,6 @@ export class MessageEnvelope {
     });
   }
 
-  /**
-   * Generate UUID v4
-   */
-  private generateUUID(): string {
-    return MessageEnvelope.generateUUID();
-  }
-
   static generateUUID(): string {
     return crypto.randomUUID();
   }

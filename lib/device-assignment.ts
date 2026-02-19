@@ -29,7 +29,7 @@ export async function assignDeviceId(deviceUuid: string): Promise<string> {
       where: {
         OR: [
           { uuid: null },
-          { uuid: '' },
+          { uuid: '' }, // Handle cases where devices are created with empty strings
         ],
       },
       orderBy: {
@@ -124,11 +124,11 @@ function generateIoTHubConnectionString(deviceId: string): string {
   const iotPrimaryKeyDevice = process.env.IOT_PRIMARY_KEY_DEVICE;
 
   if (!iotConnectionString) {
-    throw new Error('IOT_CONNECTION_STRING environment variable not set');
+    throw new Error('IOT_CONNECTION_STRING environment variable not set. Please configure in .env file or environment settings.');
   }
 
   if (!iotPrimaryKeyDevice) {
-    throw new Error('IOT_PRIMARY_KEY_DEVICE environment variable not set');
+    throw new Error('IOT_PRIMARY_KEY_DEVICE environment variable not set. Please configure in .env file or environment settings.');
   }
 
   // Extract hostname from connection string
@@ -136,7 +136,7 @@ function generateIoTHubConnectionString(deviceId: string): string {
   const hostNameMatch = iotConnectionString.match(/HostName=([^;]+)/);
   
   if (!hostNameMatch) {
-    throw new Error('Invalid IOT_CONNECTION_STRING format');
+    throw new Error('Invalid IOT_CONNECTION_STRING format. Expected format: HostName=xxx.azure-devices.net;...');
   }
 
   const hostName = hostNameMatch[1];
