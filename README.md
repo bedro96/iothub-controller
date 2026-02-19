@@ -481,6 +481,7 @@ npm run lint         # Run ESLint
 npm run db:generate  # Generate Prisma client
 npm run db:push      # Push schema to database
 npm run db:init      # Initialize database collections
+npx next start
 ```
 
 ## 📱 Pages
