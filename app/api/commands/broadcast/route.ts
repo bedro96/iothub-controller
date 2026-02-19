@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { connectionManager } from '@/lib/connection-manager';
+import { MessageEnvelope } from '@/lib/message-envelope';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,11 +29,14 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { command, payload } = body;
+    const { command, payload, action } = body;
 
-    if (!command) {
+    // Support both 'command' and 'action' fields for compatibility
+    const actionName = action || command;
+
+    if (!actionName) {
       return NextResponse.json(
-        { error: 'Command is required' },
+        { error: 'Command or action is required' },
         { status: 400 }
       );
     }
@@ -40,7 +44,7 @@ export async function POST(request: NextRequest) {
     // Create command record
     const deviceCommand = await prisma.deviceCommand.create({
       data: {
-        command,
+        command: actionName,
         payload: payload || {},
         broadcast: true,
         userId: user.id,
@@ -48,16 +52,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Broadcast to all connected devices
-    const message = {
+    // Create message using MessageEnvelope format
+    const envelope = new MessageEnvelope({
       type: 'command',
-      commandId: deviceCommand.id,
-      command,
+      action: actionName,
+      id: deviceCommand.id,
       payload: payload || {},
-      timestamp: new Date().toISOString(),
-    };
+      meta: {
+        broadcast: true,
+        source: 'api',
+      },
+    });
 
-    const sentCount = connectionManager.broadcast(message);
+    const sentCount = connectionManager.broadcast(envelope.toJSON());
 
     return NextResponse.json({
       message: 'Command broadcast successfully',

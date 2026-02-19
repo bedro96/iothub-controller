@@ -128,6 +128,12 @@ export function shouldBypassRateLimit(request: NextRequest): boolean {
     return true;
   }
   
+  // Bypass rate limiting for WebSocket device connections
+  // IoT devices connecting via /ws/{uuid} should not be rate limited
+  if (pathname.startsWith('/ws/')) {
+    return true;
+  }
+  
   // Check for internal service token (optional).
   // For Edge runtime compatibility we don't compare against process.env here.
   // If you need an internal bypass, handle it in server-side code only.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { connectionManager } from '@/lib/connection-manager';
+import { MessageEnvelope } from '@/lib/message-envelope';
 
 export async function POST(
   request: NextRequest,
@@ -33,11 +34,14 @@ export async function POST(
 
     // Parse request body
     const body = await request.json();
-    const { command, payload } = body;
+    const { command, payload, action } = body;
 
-    if (!command) {
+    // Support both 'command' and 'action' fields for compatibility
+    const actionName = action || command;
+
+    if (!actionName) {
       return NextResponse.json(
-        { error: 'Command is required' },
+        { error: 'Command or action is required' },
         { status: 400 }
       );
     }
@@ -68,7 +72,7 @@ export async function POST(
     // Create command record
     const deviceCommand = await prisma.deviceCommand.create({
       data: {
-        command,
+        command: actionName,
         payload: payload || {},
         uuid,
         deviceId: device.id,
@@ -78,16 +82,20 @@ export async function POST(
       },
     });
 
-    // Send command to specific device
-    const message = {
+    // Create message using MessageEnvelope format
+    const envelope = new MessageEnvelope({
       type: 'command',
-      commandId: deviceCommand.id,
-      command,
+      action: actionName,
+      id: deviceCommand.id,
       payload: payload || {},
-      timestamp: new Date().toISOString(),
-    };
+      meta: {
+        broadcast: false,
+        source: 'api',
+        targetUuid: uuid,
+      },
+    });
 
-    const sent = connectionManager.sendToDevice(uuid, message);
+    const sent = connectionManager.sendToDevice(uuid, envelope.toJSON());
 
     if (!sent) {
       // Update command status to failed

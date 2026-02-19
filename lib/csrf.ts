@@ -87,6 +87,12 @@ const csrfExceptions = new Set<string>([
  * Check if route should bypass CSRF protection
  */
 export function shouldBypassCSRF(pathname: string): boolean {
+  // WebSocket device connections should bypass CSRF
+  // These are not traditional HTTP requests and don't use cookies
+  if (pathname.startsWith('/ws/')) {
+    return true;
+  }
+  
   return csrfExceptions.has(pathname) || pathname.startsWith('/api/webhook/');
 }
 

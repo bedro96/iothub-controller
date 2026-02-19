@@ -7,6 +7,8 @@ import { verifyToken } from './lib/auth';
 import { prisma } from './lib/prisma';
 import { logInfo, logError } from './lib/logger';
 import { connectionManager } from './lib/connection-manager';
+import { MessageEnvelope, parseMessage } from './lib/message-envelope';
+import { assignDeviceId, getDeviceConfiguration } from './lib/device-assignment';
 // Start Node-only background tasks (rate-limit cleanup)
 import './lib/rate-limit-node';
 
@@ -192,76 +194,231 @@ app.prepare().then(() => {
         // Add connection to manager
         connectionManager.addConnection(uuid, ws);
 
-        // Send welcome message
-        ws.send(JSON.stringify({
-          type: 'connected',
-          uuid,
-          timestamp: new Date().toISOString(),
-        }));
-
-        // Update device connection status in database
-        prisma.device.updateMany({
-          where: { uuid },
-          data: {
-            connectionStatus: 'connected',
-            lastSeen: new Date(),
+        // Send welcome message using MessageEnvelope format
+        const welcomeEnvelope = new MessageEnvelope({
+          type: 'event',
+          action: 'connection.established',
+          id: MessageEnvelope.generateUUID(),
+          payload: {
+            uuid,
+            message: 'Connected to IoT Hub Controller',
           },
-        }).then(() => {
-          logInfo('Device connection status updated', { uuid });
-        }).catch((error) => {
-          logError(error, { context: 'Failed to update device connection status', uuid });
+          status: 'success',
         });
+        ws.send(welcomeEnvelope.toString());
+
+        logInfo('Device connected to WebSocket', { uuid });
 
         // Handle incoming messages
         ws.on('message', async (data) => {
           try {
-            const message = JSON.parse(data.toString());
-            logInfo('Device message received', { uuid, type: message.type });
+            // Parse message using MessageEnvelope format
+            const envelope = parseMessage(data.toString());
+            
+            if (!envelope) {
+              logError(new Error('Failed to parse message'), { 
+                context: 'Invalid message format', 
+                uuid,
+                rawData: data.toString().substring(0, 200),
+              });
+              
+              // Send error response
+              const errorEnvelope = new MessageEnvelope({
+                type: 'error',
+                action: 'parse.error',
+                id: MessageEnvelope.generateUUID(),
+                payload: {},
+                status: 'failure',
+                meta: {
+                  error: 'Invalid message format',
+                },
+              });
+              ws.send(errorEnvelope.toString());
+              return;
+            }
+
+            logInfo('Device message received', { 
+              uuid, 
+              type: envelope.type,
+              action: envelope.action,
+              id: envelope.id,
+              correlationId: envelope.correlationId,
+            });
 
             // Handle different message types
-            switch (message.type) {
-              case 'telemetry':
-                // Store telemetry data (update metadata with debounce-like approach)
-                // Only update database every N messages to reduce load
-                await prisma.device.updateMany({
-                  where: { uuid },
-                  data: {
-                    metadata: message,
-                    lastSeen: new Date(),
-                  },
-                });
-                logInfo('Telemetry received', { uuid, data: message.data });
+            switch (envelope.type) {
+              case 'request':
+                // Client is requesting device configuration
+                // This matches Python server's handling of type: "request"
+                try {
+                  // Assign a device ID to this UUID
+                  const deviceId = await assignDeviceId(envelope.id);
+                  
+                  // Get device configuration
+                  const config = await getDeviceConfiguration(deviceId);
+                  
+                  // Send response with device configuration
+                  const responseEnvelope = MessageEnvelope.createResponse(
+                    envelope,
+                    'device.config.update',
+                    config,
+                    'success'
+                  );
+                  
+                  ws.send(responseEnvelope.toString());
+                  
+                  logInfo('Device configuration sent', { 
+                    uuid, 
+                    deviceId,
+                    correlationId: envelope.id,
+                  });
+                } catch (error) {
+                  // Send error response if assignment fails
+                  const errorEnvelope = MessageEnvelope.createError(
+                    envelope,
+                    (error as Error).message || 'Failed to assign device ID',
+                    {
+                      error_type: 'device_assignment_error',
+                    }
+                  );
+                  
+                  ws.send(errorEnvelope.toString());
+                  
+                  logError(error as Error, { 
+                    context: 'Device ID assignment failed', 
+                    uuid,
+                  });
+                }
                 break;
-              
-              case 'status':
-                // Update device status (always update for status changes)
+
+              case 'report':
+                // Client is sending telemetry/status report
+                // This matches Python server's handling of type: "report"
+                try {
+                  // Update device metadata and lastSeen
+                  await prisma.device.updateMany({
+                    where: { uuid },
+                    data: {
+                      metadata: envelope.payload,
+                      lastSeen: new Date(),
+                    },
+                  });
+
+                  // Send acknowledgment
+                  const ackEnvelope = MessageEnvelope.createResponse(
+                    envelope,
+                    'none',
+                    {},
+                    'received'
+                  );
+                  
+                  ws.send(ackEnvelope.toString());
+                  
+                  logInfo('Device report received and acknowledged', { 
+                    uuid,
+                    correlationId: envelope.id,
+                  });
+                } catch (error) {
+                  logError(error as Error, { 
+                    context: 'Failed to process device report', 
+                    uuid,
+                  });
+                  
+                  // Send error response
+                  const errorEnvelope = MessageEnvelope.createError(
+                    envelope,
+                    'Failed to process report',
+                    {}
+                  );
+                  ws.send(errorEnvelope.toString());
+                }
+                break;
+
+              case 'event':
+                // Device event (e.g., connection status, state change)
+                logInfo('Device event received', { 
+                  uuid,
+                  action: envelope.action,
+                  payload: envelope.payload,
+                });
+                
+                // Update lastSeen
                 await prisma.device.updateMany({
                   where: { uuid },
                   data: {
-                    status: message.status || 'online',
                     lastSeen: new Date(),
                   },
                 });
                 break;
 
               case 'response':
-                // Store command response (always update for responses)
-                if (message.commandId) {
-                  await prisma.deviceCommand.updateMany({
-                    where: {
-                      id: message.commandId,
+                // Response to a command we sent
+                // Update command status in database
+                if (envelope.correlationId) {
+                  try {
+                    // Find command by correlationId and update status
+                    const updated = await prisma.deviceCommand.updateMany({
+                      where: {
+                        uuid,
+                        id: envelope.correlationId,
+                      },
+                      data: {
+                        status: envelope.status === 'success' ? 'completed' : 'failed',
+                        response: envelope.payload,
+                      },
+                    });
+
+                    if (updated.count > 0) {
+                      logInfo('Command response processed', { 
+                        uuid,
+                        commandId: envelope.correlationId,
+                        status: envelope.status,
+                      });
+                    }
+                  } catch (error) {
+                    logError(error as Error, { 
+                      context: 'Failed to update command status', 
                       uuid,
-                    },
-                    data: {
-                      status: 'completed',
-                      response: message.data,
-                    },
-                  });
+                      correlationId: envelope.correlationId,
+                    });
+                  }
                 }
+
+                // Update lastSeen
+                await prisma.device.updateMany({
+                  where: { uuid },
+                  data: {
+                    lastSeen: new Date(),
+                  },
+                });
                 break;
-              
+
+              case 'error':
+                // Device is reporting an error
+                logError(new Error('Device reported error'), { 
+                  context: 'Device error message', 
+                  uuid,
+                  deviceError: envelope.meta?.error || envelope.payload,
+                  correlationId: envelope.correlationId,
+                });
+                
+                // Update lastSeen
+                await prisma.device.updateMany({
+                  where: { uuid },
+                  data: {
+                    lastSeen: new Date(),
+                  },
+                });
+                break;
+
               default:
-                // For other message types, only update lastSeen
+                // Unknown message type - log and update lastSeen
+                logInfo('Unknown message type received', { 
+                  uuid,
+                  type: envelope.type,
+                  action: envelope.action,
+                });
+                
                 await prisma.device.updateMany({
                   where: { uuid },
                   data: {
@@ -270,7 +427,30 @@ app.prepare().then(() => {
                 });
             }
           } catch (error) {
-            logError(error as Error, { context: 'Device message processing', uuid });
+            logError(error as Error, { 
+              context: 'Device message processing error', 
+              uuid,
+            });
+            
+            // Try to send error response
+            try {
+              const errorEnvelope = new MessageEnvelope({
+                type: 'error',
+                action: 'processing.error',
+                id: MessageEnvelope.generateUUID(),
+                payload: {},
+                status: 'failure',
+                meta: {
+                  error: 'Internal server error',
+                },
+              });
+              ws.send(errorEnvelope.toString());
+            } catch (sendError) {
+              logError(sendError as Error, { 
+                context: 'Failed to send error response', 
+                uuid,
+              });
+            }
           }
         });
 
