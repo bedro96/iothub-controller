@@ -113,3 +113,29 @@ model DeviceCommand {
   @@index([userId])
   @@index([status])
 }
+
+model DeviceId {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  deviceId  String   @unique
+  deviceUuid String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("deviceids")
+}
+
+model Telemetry {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  deviceId  String
+  type      String?
+  modelId   String?
+  status    String?
+  temp      Float?
+  humidity  Float?
+  ts        String?
+  createdAt DateTime @default(now())
+  
+  @@index([deviceId])
+  @@index([createdAt])
+  @@map("telemetries")
+}

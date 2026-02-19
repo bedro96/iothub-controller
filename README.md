@@ -111,6 +111,13 @@ A production-ready IoT Hub Management System built with Next.js 16, featuring JW
 - `LOG_LEVEL` - Logging level (error/warn/info/http/debug)
 - `PORT` - Server port (default: 3000)
 
+### IoT Hub Configuration (for device connectivity)
+- `IOT_CONNECTION_STRING` - Azure IoT Hub connection string (format: `HostName=your-iothub.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=...`)
+- `IOT_PRIMARY_KEY_DEVICE` - Device shared access key for Azure IoT Hub
+- `INITIAL_RETRY_TIMEOUT` - Device retry timeout in seconds (default: 30)
+- `MAX_RETRY` - Maximum retry attempts (default: 10)
+- `MESSAGE_INTERVAL_SECONDS` - Message interval in seconds (default: 5)
+
 ## 📖 API Documentation
 
 ### Authentication Endpoints
@@ -267,6 +274,155 @@ socket.on('device:data:received', (data) => {
   // data: { deviceId, payload, timestamp }
 });
 ```
+
+## 🤖 IoT Device WebSocket API
+
+### Device Connection Endpoint
+
+IoT devices connect using WebSocket to `/ws/{uuid}` without authentication.
+
+**Connection URL**: `ws://localhost:3000/ws/{device-uuid}`
+
+**No authentication required** - This endpoint is specifically for IoT device communication and bypasses all authentication, rate limiting, and CSRF protection.
+
+### Message Protocol
+
+Messages use the **MessageEnvelope** protocol for structured communication:
+
+```json
+{
+  "version": 1,
+  "type": "request|response|report|command|error",
+  "id": "unique-message-id",
+  "correlationId": "related-message-id",
+  "ts": "2026-02-19T10:41:21.000Z",
+  "action": "action-name",
+  "status": "success|failure|pending|received",
+  "payload": {},
+  "meta": {}
+}
+```
+
+### Device Connection Flow
+
+#### 1. Device Connects
+Device establishes WebSocket connection to `/ws/{uuid}` where `uuid` is a unique identifier for the device.
+
+#### 2. Device Requests Configuration
+```json
+{
+  "version": "1.0",
+  "type": "request",
+  "id": "{device-uuid}",
+  "action": "",
+  "status": "connected",
+  "payload": {"DEVICE_UUID": "{device-uuid}"}
+}
+```
+
+#### 3. Server Responds with Configuration
+```json
+{
+  "version": 1,
+  "type": "response",
+  "id": "{new-uuid}",
+  "correlationId": "{device-uuid}",
+  "action": "device.config.update",
+  "status": "success",
+  "payload": {
+    "device_id": "simdevice0001",
+    "IOTHUB_DEVICE_CONNECTION_STRING": "HostName=...",
+    "initialRetryTimeout": 30,
+    "maxRetry": 10,
+    "messageIntervalSeconds": 5
+  }
+}
+```
+
+#### 4. Device Sends Reports
+```json
+{
+  "type": "report",
+  "id": "{report-uuid}",
+  "payload": {"temperature": 25.5, "humidity": 60.0}
+}
+```
+
+Server acknowledges:
+```json
+{
+  "version": 1,
+  "type": "response",
+  "action": "none",
+  "status": "received",
+  "correlationId": "{report-uuid}"
+}
+```
+
+#### 5. Server Sends Commands
+```json
+{
+  "version": 1,
+  "type": "command",
+  "action": "device.start|device.stop|device.restart",
+  "status": "pending",
+  "payload": {}
+}
+```
+
+### Device Management API Endpoints
+
+#### Generate Device IDs
+```
+POST /api/devices/generate/{number_of_devices}
+Headers: x-user-email: user@example.com
+Returns: { generated_device_ids: ["simdevice0001", ...] }
+```
+
+#### Clear Device Mappings
+```
+POST /api/devices/clear-mappings
+Headers: x-user-email: user@example.com
+Clears UUID assignments, allowing device IDs to be reassigned
+```
+
+#### Delete All Devices
+```
+POST /api/devices/delete-all
+Headers: x-user-email: user@example.com
+Removes all device ID entries and closes connections
+```
+
+#### Send Command to Device
+```
+POST /api/commands/{uuid}
+Body: { action: "device.start", payload: {} }
+Sends command to specific device
+```
+
+#### Broadcast Command
+```
+POST /api/commands/broadcast
+Body: { action: "device.stop", payload: {} }
+Sends command to all connected devices
+```
+
+#### Get Connected Clients
+```
+GET /api/clients
+Returns: { total, active, clients: [...] }
+```
+
+#### Store Telemetry Report
+```
+POST /api/report/{device_id}
+Body: { deviceId, type, modelId, status, temp, humidity, ts }
+Stores telemetry data from device
+```
+
+### Java Client Reference
+
+The server is compatible with the Java WebSocket client at `/reference/client/SimulatorWSClient.java`. See `/MIGRATIONREVIEW.md` for detailed protocol documentation.
 
 ## 🛡️ Security Configuration
 

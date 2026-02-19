@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { connectionManager } from '@/lib/connection-manager';
+import { MessageEnvelope } from '@/lib/message-envelope';
 
 export async function POST(
   request: NextRequest,
@@ -33,18 +34,16 @@ export async function POST(
 
     // Parse request body
     const body = await request.json();
-    const { command, payload } = body;
+    const { action, payload } = body;
 
-    if (!command) {
+    if (!action) {
       return NextResponse.json(
-        { error: 'Command is required' },
+        { error: 'Action is required' },
         { status: 400 }
       );
     }
 
     // Find device by UUID
-    // Prisma's generated DeviceWhereInput types may be strict in some environments;
-    // cast to `any` here to keep the runtime query intact while satisfying TS.
     const device = await prisma.device.findFirst({
       where: ({
         uuid,
@@ -70,7 +69,7 @@ export async function POST(
     // Create command record
     const deviceCommand = await (prisma as any).deviceCommand.create({
       data: {
-        command,
+        command: action,
         payload: payload || {},
         uuid,
         deviceId: device.id,
@@ -80,16 +79,20 @@ export async function POST(
       },
     });
 
-    // Send command to specific device
-    const message = {
+    // Create MessageEnvelope for command
+    const envelope = new MessageEnvelope({
+      version: 1,
       type: 'command',
-      commandId: deviceCommand.id,
-      command,
+      action,
       payload: payload || {},
-      timestamp: new Date().toISOString(),
-    };
+      status: 'pending',
+      meta: {
+        commandId: deviceCommand.id,
+        timestamp: new Date().toISOString(),
+      },
+    });
 
-    const sent = connectionManager.sendToDevice(uuid, message);
+    const sent = connectionManager.sendToDevice(uuid, envelope.toDict());
 
     if (!sent) {
       // Update command status to failed

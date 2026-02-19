@@ -26,37 +26,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all user's devices
-    const devices = await prisma.device.findMany({
-      where: { userId: user.id },
-    });
+    // Get all DeviceId entries
+    const deviceIdEntries = await (prisma as any).deviceId.findMany();
+    const deviceIds = deviceIdEntries.map((entry: any) => entry.deviceId);
 
-    // Close all WebSocket connections for these devices
-    for (const device of devices) {
-      const uuid = (device as any).uuid
-      if (uuid) {
-        connectionManager.removeConnection(uuid)
+    // Close all WebSocket connections
+    for (const entry of deviceIdEntries) {
+      if (entry.deviceUuid) {
+        connectionManager.removeConnection(entry.deviceUuid);
       }
     }
 
-    // Delete all device mappings for this user
+    // Delete all DeviceId entries
+    await (prisma as any).deviceId.deleteMany({});
+
+    // Delete all device-related data for this user
     await (prisma as any).deviceMapping.deleteMany({
       where: { userId: user.id },
     });
 
-    // Delete all device commands for this user
     await (prisma as any).deviceCommand.deleteMany({
       where: { userId: user.id },
     });
 
-    // Delete all devices for this user
-    const result = await prisma.device.deleteMany({
+    await prisma.device.deleteMany({
       where: { userId: user.id },
     });
 
     return NextResponse.json({
       message: 'All devices deleted successfully',
-      deletedCount: result.count,
+      status: 'all devices deleted',
+      deletedDeviceIds: deviceIds,
     }, { status: 200 });
 
   } catch (error) {
