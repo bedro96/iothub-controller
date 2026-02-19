@@ -1,3 +1,16 @@
+// Polyfill global AsyncLocalStorage for runtimes where it's not present
+// Next.js expects `globalThis.AsyncLocalStorage` to exist (Node 20+ exposes it).
+// If it's missing, assign Node's AsyncLocalStorage from `async_hooks` so Next can run.
+if (typeof (globalThis as any).AsyncLocalStorage === 'undefined') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { AsyncLocalStorage } = require('async_hooks');
+    (globalThis as any).AsyncLocalStorage = AsyncLocalStorage;
+  } catch (e) {
+    // ignore — if this fails, Next will throw the original invariant
+  }
+}
+
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
@@ -21,6 +34,10 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   const server = createServer(async (req, res) => {
+    // Log incoming HTTP requests to help diagnose routing/Next handling
+    try {
+      console.log('[http]', req.method, req.url);
+    } catch (e) { }
     try {
       const parsedUrl = parse(req.url!, true);
       
