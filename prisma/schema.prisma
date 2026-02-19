@@ -121,8 +121,6 @@ model DeviceId {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  @@index([deviceId])
-  @@index([deviceUuid])
   @@map("deviceids")
 }
 
