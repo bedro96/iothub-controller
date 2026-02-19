@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
+import { logInfo } from '@/lib/logger';
 
 export async function POST(
   request: NextRequest,
@@ -56,7 +57,7 @@ export async function POST(
         });
       } catch (error) {
         // If device already exists, continue
-        console.log(`Device ${deviceId} already exists, skipping`);
+        logInfo('Device already exists, skipping', { deviceId });
       }
     }
 

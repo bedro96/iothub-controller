@@ -179,10 +179,11 @@ app.prepare().then(() => {
   // Handle WebSocket upgrade for device connections
   server.on('upgrade', (request, socket, head) => {
     const url = request.url || '';
+    const WS_PREFIX = '/ws/';
     
     // Check if this is a device WebSocket connection (/ws/{uuid})
-    if (url.startsWith('/ws/')) {
-      const uuid = url.substring(4).split('?')[0]; // Extract UUID from /ws/{uuid}, ignore query params
+    if (url.startsWith(WS_PREFIX)) {
+      const uuid = url.substring(WS_PREFIX.length).split('?')[0]; // Extract UUID from /ws/{uuid}, ignore query params
       
       if (!uuid) {
         socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
@@ -195,8 +196,20 @@ app.prepare().then(() => {
         connectionManager.addConnection(uuid, ws);
         logInfo('Device WebSocket connected', { uuid });
 
+        // Helper function to build IoT Hub connection string
+        function buildIotHubConnectionString(connectionString: string | undefined, deviceId: string, primaryKey: string | undefined): string {
+          if (!connectionString) return '';
+          try {
+            const hostname = connectionString.split(';')[0].split('=')[1];
+            return `HostName=${hostname};DeviceId=${deviceId};SharedAccessKey=${primaryKey || ''}`;
+          } catch (error) {
+            logError(error as Error, { context: 'Failed to build IoT Hub connection string' });
+            return '';
+          }
+        }
+
         // Helper function to assign device ID to UUID
-        async function assignDeviceId(messageId: string): Promise<string> {
+        async function assignDeviceId(deviceUuid: string): Promise<string> {
           try {
             // Query for an available device_id where device_uuid is null
             const availableDevice = await (prisma as any).deviceId.findFirst({
@@ -211,13 +224,13 @@ app.prepare().then(() => {
             // Update the device with the UUID
             await (prisma as any).deviceId.update({
               where: { id: availableDevice.id },
-              data: { deviceUuid: messageId },
+              data: { deviceUuid: deviceUuid },
             });
 
-            logInfo('Assigned device ID to UUID', { deviceId: availableDevice.deviceId, uuid: messageId });
+            logInfo('Assigned device ID to UUID', { deviceId: availableDevice.deviceId, uuid: deviceUuid });
             return availableDevice.deviceId;
           } catch (error) {
-            logError(error as Error, { context: 'Failed to assign device ID', uuid: messageId });
+            logError(error as Error, { context: 'Failed to assign device ID', uuid: deviceUuid });
             throw error;
           }
         }
@@ -242,9 +255,11 @@ app.prepare().then(() => {
                 const assignedDeviceId = await assignDeviceId(message.id || uuid);
                 
                 // Generate IoT Hub connection string (if environment variables are set)
-                const iotHubConnectionString = process.env.IOT_CONNECTION_STRING 
-                  ? `HostName=${process.env.IOT_CONNECTION_STRING.split(';')[0].split('=')[1]};DeviceId=${assignedDeviceId};SharedAccessKey=${process.env.IOT_PRIMARY_KEY_DEVICE || ''}`
-                  : '';
+                const iotHubConnectionString = buildIotHubConnectionString(
+                  process.env.IOT_CONNECTION_STRING,
+                  assignedDeviceId,
+                  process.env.IOT_PRIMARY_KEY_DEVICE
+                );
 
                 const envelope = new MessageEnvelope({
                   version: 1,
@@ -314,8 +329,8 @@ app.prepare().then(() => {
                 connectionStatus: 'connected',
               } as any,
             }).catch((error) => {
-              // Ignore errors if device doesn't exist yet
-              logInfo('Device not found in database (may not be created yet)', { uuid });
+              // Device record not yet created in database (expected for new devices)
+              logInfo('Device record not yet created in database (expected for new devices)', { uuid });
             });
 
           } catch (error) {
