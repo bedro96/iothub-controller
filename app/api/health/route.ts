@@ -4,8 +4,9 @@ import { connectionManager } from '@/lib/connection-manager';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check database connection
-    await prisma.$queryRaw`SELECT 1`;
+    // Check database connection by trying to count users
+    // MongoDB doesn't support $queryRaw, so we use a simple query instead
+    await prisma.user.count();
     
     const health = {
       status: 'healthy',
