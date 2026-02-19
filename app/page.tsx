@@ -105,7 +105,7 @@ export default function Home() {
             <div className="mt-8">
               <h3 className="text-2xl font-semibold mb-4">Your Dashboard</h3>
               <p className="text-muted-foreground">
-                You are logged in as <strong>{user.username}</strong> ({user.role})
+                You are logged in as <strong>{user.email}</strong> ({user.role})
               </p>
             </div>
           )}

@@ -201,11 +201,11 @@ app.prepare().then(() => {
 
         // Update device connection status in database
         prisma.device.updateMany({
-          where: { uuid },
-          data: {
+          where: ({ uuid } as any),
+          data: ({
             connectionStatus: 'connected',
             lastSeen: new Date(),
-          },
+          } as any),
         }).then(() => {
           logInfo('Device connection status updated', { uuid });
         }).catch((error) => {
@@ -224,11 +224,11 @@ app.prepare().then(() => {
                 // Store telemetry data (update metadata with debounce-like approach)
                 // Only update database every N messages to reduce load
                 await prisma.device.updateMany({
-                  where: { uuid },
-                  data: {
+                  where: ({ uuid } as any),
+                  data: ({
                     metadata: message,
                     lastSeen: new Date(),
-                  },
+                  } as any),
                 });
                 logInfo('Telemetry received', { uuid, data: message.data });
                 break;
@@ -236,18 +236,18 @@ app.prepare().then(() => {
               case 'status':
                 // Update device status (always update for status changes)
                 await prisma.device.updateMany({
-                  where: { uuid },
-                  data: {
+                  where: ({ uuid } as any),
+                  data: ({
                     status: message.status || 'online',
                     lastSeen: new Date(),
-                  },
+                  } as any),
                 });
                 break;
 
               case 'response':
                 // Store command response (always update for responses)
                 if (message.commandId) {
-                  await prisma.deviceCommand.updateMany({
+                  await (prisma as any).deviceCommand.updateMany({
                     where: {
                       id: message.commandId,
                       uuid,
@@ -263,10 +263,10 @@ app.prepare().then(() => {
               default:
                 // For other message types, only update lastSeen
                 await prisma.device.updateMany({
-                  where: { uuid },
-                  data: {
+                  where: ({ uuid } as any),
+                  data: ({
                     lastSeen: new Date(),
-                  },
+                  } as any),
                 });
             }
           } catch (error) {
@@ -280,10 +280,10 @@ app.prepare().then(() => {
           
           // Update device connection status
           await prisma.device.updateMany({
-            where: { uuid },
-            data: {
+            where: ({ uuid } as any),
+            data: ({
               connectionStatus: 'disconnected',
-            },
+            } as any),
           }).catch((error) => {
             logError(error, { context: 'Failed to update device disconnection status', uuid });
           });

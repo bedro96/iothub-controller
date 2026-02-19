@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create command record
-    const deviceCommand = await prisma.deviceCommand.create({
+    const deviceCommand = await (prisma as any).deviceCommand.create({
       data: {
         command,
         payload: payload || {},

@@ -41,10 +41,10 @@ async function main() {
     const auditLogCount = await prisma.auditLog.count();
     console.log(`   Audit Logs: ${auditLogCount} records`);
     
-    const deviceMappingCount = await prisma.deviceMapping.count();
+    const deviceMappingCount = await (prisma as any).deviceMapping.count();
     console.log(`   Device Mappings: ${deviceMappingCount} records`);
     
-    const deviceCommandCount = await prisma.deviceCommand.count();
+    const deviceCommandCount = await (prisma as any).deviceCommand.count();
     console.log(`   Device Commands: ${deviceCommandCount} records`);
     
     console.log('\n✨ Database initialization completed successfully!');

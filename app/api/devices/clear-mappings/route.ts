@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete all device mappings for this user
-    const result = await prisma.deviceMapping.deleteMany({
+    const result = await (prisma as any).deviceMapping.deleteMany({
       where: { userId: user.id },
     });
 

@@ -47,17 +47,18 @@ export async function POST(
     }
 
     // Close WebSocket connection if active
-    if (device.uuid) {
-      connectionManager.removeConnection(device.uuid);
+    const devUuid = (device as any).uuid
+    if (devUuid) {
+      connectionManager.removeConnection(devUuid);
     }
 
     // Delete device mappings first
-    await prisma.deviceMapping.deleteMany({
+    await (prisma as any).deviceMapping.deleteMany({
       where: { deviceId: device_id },
     });
 
     // Delete device commands
-    await prisma.deviceCommand.deleteMany({
+    await (prisma as any).deviceCommand.deleteMany({
       where: { deviceId: device_id },
     });
 

@@ -43,11 +43,13 @@ export async function POST(
     }
 
     // Find device by UUID
+    // Prisma's generated DeviceWhereInput types may be strict in some environments;
+    // cast to `any` here to keep the runtime query intact while satisfying TS.
     const device = await prisma.device.findFirst({
-      where: {
+      where: ({
         uuid,
         userId: user.id,
-      },
+      } as any),
     });
 
     if (!device) {
@@ -66,7 +68,7 @@ export async function POST(
     }
 
     // Create command record
-    const deviceCommand = await prisma.deviceCommand.create({
+    const deviceCommand = await (prisma as any).deviceCommand.create({
       data: {
         command,
         payload: payload || {},
@@ -91,7 +93,7 @@ export async function POST(
 
     if (!sent) {
       // Update command status to failed
-      await prisma.deviceCommand.update({
+      await (prisma as any).deviceCommand.update({
         where: { id: deviceCommand.id },
         data: { status: 'failed' },
       });

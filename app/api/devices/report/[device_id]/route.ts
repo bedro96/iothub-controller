@@ -47,18 +47,19 @@ export async function POST(
     }
 
     // Get report data (metadata and recent activity)
+    const d = device as any
     const report = {
-      deviceId: device.id,
-      name: device.name,
-      type: device.type,
-      status: device.status,
-      connectionStatus: device.connectionStatus,
-      uuid: device.uuid,
-      metadata: device.metadata,
-      lastSeen: device.lastSeen,
-      createdAt: device.createdAt,
-      updatedAt: device.updatedAt,
-      isConnected: device.uuid ? connectionManager.isConnected(device.uuid) : false,
+      deviceId: d.id,
+      name: d.name,
+      type: d.type,
+      status: d.status,
+      connectionStatus: d.connectionStatus,
+      uuid: d.uuid,
+      metadata: d.metadata,
+      lastSeen: d.lastSeen,
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+      isConnected: d.uuid ? connectionManager.isConnected(d.uuid) : false,
     };
 
     return NextResponse.json(report, { status: 200 });

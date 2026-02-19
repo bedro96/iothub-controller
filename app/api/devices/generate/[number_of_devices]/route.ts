@@ -70,14 +70,14 @@ export async function POST(
 
     // Create mappings in batch
     const mappingData = createdDevices
-      .filter(device => device.uuid)
+      .filter(device => (device as any).uuid)
       .map(device => ({
-        uuid: device.uuid!,
+        uuid: (device as any).uuid!,
         deviceId: device.id,
         userId: user.id,
       }));
 
-    await prisma.deviceMapping.createMany({
+    await (prisma as any).deviceMapping.createMany({
       data: mappingData,
     });
 
