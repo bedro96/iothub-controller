@@ -15,11 +15,11 @@ import { logInfo, logError } from './logger';
  * and assigns the given UUID to it. This matches the Python server's behavior
  * where devices are pre-created and then assigned to connecting clients.
  * 
- * @param messageId - The UUID from the connecting device's request message
- * @returns The assigned device_id string
+ * @param deviceUuid - The UUID from the connecting device (from WebSocket path)
+ * @returns The assigned device_id string (device name)
  * @throws Error if no available devices found
  */
-export async function assignDeviceId(messageId: string): Promise<string> {
+export async function assignDeviceId(deviceUuid: string): Promise<string> {
   try {
     // Find a device that doesn't have a UUID assigned yet
     // This is similar to the Python server's query:
@@ -27,7 +27,10 @@ export async function assignDeviceId(messageId: string): Promise<string> {
     
     const availableDevice = await prisma.device.findFirst({
       where: {
-        uuid: null,
+        OR: [
+          { uuid: null },
+          { uuid: '' },
+        ],
       },
       orderBy: {
         createdAt: 'asc', // Assign oldest devices first
@@ -48,7 +51,7 @@ export async function assignDeviceId(messageId: string): Promise<string> {
         id: availableDevice.id,
       },
       data: {
-        uuid: messageId,
+        uuid: deviceUuid,
         connectionStatus: 'connected',
         lastSeen: new Date(),
       },
@@ -57,7 +60,7 @@ export async function assignDeviceId(messageId: string): Promise<string> {
     logInfo('Assigned device ID to UUID', { 
       deviceId: availableDevice.id, 
       deviceName: availableDevice.name,
-      uuid: messageId,
+      uuid: deviceUuid,
     });
 
     // Return the device name as the device_id (similar to Python's simdevice0001 format)
@@ -65,7 +68,7 @@ export async function assignDeviceId(messageId: string): Promise<string> {
   } catch (error) {
     logError(error as Error, { 
       context: 'Failed to assign device ID', 
-      messageId,
+      deviceUuid,
     });
     throw error;
   }

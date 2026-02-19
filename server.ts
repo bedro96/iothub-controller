@@ -251,8 +251,8 @@ app.prepare().then(() => {
                 // Client is requesting device configuration
                 // This matches Python server's handling of type: "request"
                 try {
-                  // Assign a device ID to this UUID
-                  const deviceId = await assignDeviceId(envelope.id);
+                  // Assign a device ID to this UUID (from WebSocket path)
+                  const deviceId = await assignDeviceId(uuid);
                   
                   // Get device configuration
                   const config = await getDeviceConfiguration(deviceId);
@@ -356,11 +356,11 @@ app.prepare().then(() => {
                 // Update command status in database
                 if (envelope.correlationId) {
                   try {
-                    // Find command by correlationId and update status
+                    // Find command by correlationId (UUID) and update status
                     const updated = await prisma.deviceCommand.updateMany({
                       where: {
                         uuid,
-                        id: envelope.correlationId,
+                        correlationId: envelope.correlationId,
                       },
                       data: {
                         status: envelope.status === 'success' ? 'completed' : 'failed',
@@ -371,7 +371,7 @@ app.prepare().then(() => {
                     if (updated.count > 0) {
                       logInfo('Command response processed', { 
                         uuid,
-                        commandId: envelope.correlationId,
+                        correlationId: envelope.correlationId,
                         status: envelope.status,
                       });
                     }

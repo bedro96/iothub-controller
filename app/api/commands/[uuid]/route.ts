@@ -69,6 +69,9 @@ export async function POST(
       );
     }
 
+    // Generate correlation ID for message tracking
+    const correlationId = crypto.randomUUID();
+
     // Create command record
     const deviceCommand = await prisma.deviceCommand.create({
       data: {
@@ -79,6 +82,7 @@ export async function POST(
         userId: user.id,
         status: 'sent',
         broadcast: false,
+        correlationId,
       },
     });
 
@@ -86,12 +90,13 @@ export async function POST(
     const envelope = new MessageEnvelope({
       type: 'command',
       action: actionName,
-      id: deviceCommand.id,
+      id: correlationId, // Use correlationId as message ID
       payload: payload || {},
       meta: {
         broadcast: false,
         source: 'api',
         targetUuid: uuid,
+        commandId: deviceCommand.id, // Store ObjectId in meta for reference
       },
     });
 

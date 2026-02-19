@@ -51,7 +51,7 @@ export class MessageEnvelope {
   constructor(data: MessageEnvelopeData) {
     this.version = data.version || 1;
     this.type = data.type;
-    this.id = data.id || this.generateUUID();
+    this.id = data.id || MessageEnvelope.generateUUID();
     this.correlationId = data.correlationId || this.id;
     this.ts = data.ts || this.getISOTimestamp();
     this.action = data.action;
