@@ -25,14 +25,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete all device mappings for this user
-    const result = await (prisma as any).deviceMapping.deleteMany({
-      where: { userId: user.id },
+    // Clear device UUID mappings (set deviceUuid to null)
+    await (prisma as any).deviceId.updateMany({
+      data: {
+        deviceUuid: null,
+      },
     });
 
     return NextResponse.json({
       message: 'All device mappings cleared successfully',
-      deletedCount: result.count,
+      status: 'all mappings cleared',
     }, { status: 200 });
 
   } catch (error) {

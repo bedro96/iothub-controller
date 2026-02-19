@@ -39,52 +39,30 @@ export async function POST(
       );
     }
 
-    // Generate devices
-    const devices = [];
-    const mappings = [];
-
+    // Generate device IDs and create DeviceId entries (matching Python server logic)
+    const generatedDeviceIds = [];
+    
     for (let i = 0; i < numberOfDevices; i++) {
-      const uuid = randomUUID();
-      const deviceName = `Device-${uuid.substring(0, 8)}`;
+      const deviceId = `simdevice${String(i + 1).padStart(4, '0')}`;
+      generatedDeviceIds.push(deviceId);
       
-      devices.push({
-        name: deviceName,
-        type: 'simulated',
-        status: 'offline',
-        userId: user.id,
-        uuid: uuid,
-        connectionStatus: 'disconnected',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      // Create DeviceId entry (without UUID assigned yet - will be assigned on WebSocket connect)
+      try {
+        await (prisma as any).deviceId.create({
+          data: {
+            deviceId,
+            deviceUuid: null,
+          },
+        });
+      } catch (error) {
+        // If device already exists, continue
+        console.log(`Device ${deviceId} already exists, skipping`);
+      }
     }
 
-    // Create devices in batch
-    const createdDevices = await prisma.$transaction(
-      devices.map(device => 
-        prisma.device.create({
-          data: device,
-        })
-      )
-    );
-
-    // Create mappings in batch
-    const mappingData = createdDevices
-      .filter(device => (device as any).uuid)
-      .map(device => ({
-        uuid: (device as any).uuid!,
-        deviceId: device.id,
-        userId: user.id,
-      }));
-
-    await (prisma as any).deviceMapping.createMany({
-      data: mappingData,
-    });
-
     return NextResponse.json({
-      message: `Successfully generated ${numberOfDevices} devices`,
-      count: createdDevices.length,
-      devices: createdDevices,
+      message: `Successfully generated ${numberOfDevices} device IDs`,
+      generated_device_ids: generatedDeviceIds,
     }, { status: 201 });
 
   } catch (error) {

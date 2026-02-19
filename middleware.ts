@@ -5,6 +5,11 @@ import { csrfProtection, shouldBypassCSRF } from './lib/csrf';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
+  // Skip all middleware for WebSocket connections (/ws/ endpoints)
+  if (pathname.startsWith('/ws/')) {
+    return NextResponse.next();
+  }
+  
   // Apply rate limiting
   if (!shouldBypassRateLimit(request)) {
     let rateLimitResponse = null;
