@@ -7,6 +7,8 @@ import { verifyToken } from './lib/auth';
 import { prisma } from './lib/prisma';
 import { logInfo, logError } from './lib/logger';
 import { connectionManager } from './lib/connection-manager';
+// Start Node-only background tasks (rate-limit cleanup)
+import './lib/rate-limit-node';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/auth"
 import { logAudit } from "@/lib/logger"
+import { getRequestIP } from '@/lib/request'
 
 export async function GET() {
   try {
@@ -74,9 +75,10 @@ export async function DELETE(request: NextRequest) {
       where: { id: userId },
     })
 
+    const ip = getRequestIP(request)
     await logAudit('user.deleted', currentUser.userId, {
       deletedUserId: userId,
-      ipAddress: request.ip,
+      ipAddress: ip,
     })
 
     return NextResponse.json({ message: "User deleted successfully" })
@@ -138,10 +140,11 @@ export async function PATCH(request: NextRequest) {
       },
     })
 
+    const ip2 = getRequestIP(request)
     await logAudit('user.role_updated', currentUser.userId, {
       updatedUserId: id,
       newRole: role,
-      ipAddress: request.ip,
+      ipAddress: ip2,
     })
 
     return NextResponse.json({ message: "User updated successfully", user })

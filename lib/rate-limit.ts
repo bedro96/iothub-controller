@@ -77,9 +77,9 @@ export function cleanupRateLimitStore() {
 
 // Clean up every 5 minutes
 // Only run in server environment (Node.js has 'process' but browsers don't)
-if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-  setInterval(cleanupRateLimitStore, 5 * 60 * 1000);
-}
+// Note: cleanup interval is started in Node environments only.
+// The Node-specific starter lives in `lib/rate-limit-node.ts` so this
+// module remains Edge-runtime compatible for use in `middleware.ts`.
 
 /**
  * Rate limiter configurations for different routes
@@ -128,11 +128,9 @@ export function shouldBypassRateLimit(request: NextRequest): boolean {
     return true;
   }
   
-  // Check for internal service token
-  const serviceToken = request.headers.get('x-service-token');
-  if (serviceToken === process.env.INTERNAL_SERVICE_TOKEN) {
-    return true;
-  }
+  // Check for internal service token (optional).
+  // For Edge runtime compatibility we don't compare against process.env here.
+  // If you need an internal bypass, handle it in server-side code only.
   
   return false;
 }

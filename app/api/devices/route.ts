@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth"
 import { logAudit } from "@/lib/logger"
+import { getRequestIP } from '@/lib/request'
 
 /**
  * GET /api/devices
@@ -61,10 +62,11 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const ip = getRequestIP(request)
     await logAudit('device.created', session.userId, {
       deviceId: device.id,
       deviceName: name,
-      ipAddress: request.ip,
+      ipAddress: ip,
     })
 
     return NextResponse.json({ device }, { status: 201 })
@@ -121,9 +123,10 @@ export async function PATCH(request: NextRequest) {
       },
     })
 
+    const ip2 = getRequestIP(request)
     await logAudit('device.updated', session.userId, {
       deviceId: device.id,
-      ipAddress: request.ip,
+      ipAddress: ip2,
     })
 
     return NextResponse.json({ device })
@@ -175,9 +178,10 @@ export async function DELETE(request: NextRequest) {
       where: { id: deviceId },
     })
 
+    const ip3 = getRequestIP(request)
     await logAudit('device.deleted', session.userId, {
       deviceId,
-      ipAddress: request.ip,
+      ipAddress: ip3,
     })
 
     return NextResponse.json({ message: "Device deleted successfully" })

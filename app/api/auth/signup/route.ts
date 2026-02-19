@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { logAudit, logInfo } from "@/lib/logger"
+import { getRequestIP } from '@/lib/request'
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,10 +42,11 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const ip = getRequestIP(request)
     logInfo('User signed up', { userId: user.id, email: user.email })
     await logAudit('user.signup', user.id, {
       userEmail: user.email,
-      ipAddress: request.ip,
+      ipAddress: ip,
     })
 
     // Remove password from response

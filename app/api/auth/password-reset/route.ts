@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createPasswordResetToken, resetPassword } from "@/lib/auth"
 import { logAudit, logInfo } from "@/lib/logger"
+import { getRequestIP } from '@/lib/request'
 
 /**
  * POST /api/auth/password-reset
@@ -21,10 +22,11 @@ export async function POST(request: NextRequest) {
     const token = await createPasswordResetToken(email)
     
     if (token) {
+      const ip = getRequestIP(request)
       logInfo('Password reset requested', { email })
       await logAudit('user.password_reset_requested', null, {
         userEmail: email,
-        ipAddress: request.ip,
+        ipAddress: ip,
       })
       
       // In production, send email with reset link
@@ -80,9 +82,10 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    const ip2 = getRequestIP(request)
     logInfo('Password reset completed', { token })
     await logAudit('user.password_reset_completed', null, {
-      ipAddress: request.ip,
+      ipAddress: ip2,
     })
 
     return NextResponse.json({
