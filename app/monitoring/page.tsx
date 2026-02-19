@@ -37,13 +37,31 @@ export default function MonitoringPage() {
   const [logType, setLogType] = useState<'application' | 'error' | 'http'>('application')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [csrfToken, setCsrfToken] = useState<string | null>(null)
 
   const fetchData = async () => {
     try {
+      // Ensure we have a CSRF token for POST requests. Use the fetched token
+      // value directly (state updates are async) so the header is present.
+      let token = csrfToken
+      if (!token) {
+        try {
+          const csrfResp = await fetch('/api/auth/csrf', { credentials: 'include' })
+          if (csrfResp.ok) {
+            const data = await csrfResp.json()
+            token = data.csrfToken || null
+            setCsrfToken(token)
+          }
+        } catch (e) {
+          // ignore — we'll surface errors from the main requests
+        }
+      }
+
       // Fetch stats
       const statsResponse = await fetch("/api/monitoring", {
         method: "POST",
         credentials: "include",
+        headers: token ? { 'x-csrf-token': token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' },
       })
       
       if (statsResponse.ok) {

@@ -20,7 +20,8 @@ export async function setCSRFToken() {
   
   cookieStore.set(CSRF_TOKEN_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // Use ENABLE_SECURE_COOKIES to require Secure cookies behind HTTPS/proxies.
+    secure: process.env.ENABLE_SECURE_COOKIES === 'true',
     sameSite: 'strict',
     path: '/',
     maxAge: 60 * 60 * 24, // 24 hours
@@ -51,6 +52,10 @@ export async function verifyCSRFToken(request: NextRequest): Promise<boolean> {
   const headerToken = request.headers.get(CSRF_HEADER);
   
   if (!cookieToken || !headerToken) {
+    // Log missing tokens for debugging (safe to log presence only)
+    try {
+      console.warn('CSRF verification failed: cookiePresent=', !!cookieToken, 'headerPresent=', !!headerToken, 'path=', request.nextUrl?.pathname || request.url);
+    } catch (e) { }
     return false;
   }
   
@@ -78,6 +83,7 @@ export async function csrfProtection(request: NextRequest) {
  */
 const csrfExceptions = new Set<string>([
   '/api/auth/signup',
+  '/api/auth/login',
   '/api/health',
   '/api/status',
   '/api/webhook', // External webhooks
@@ -87,7 +93,7 @@ const csrfExceptions = new Set<string>([
  * Check if route should bypass CSRF protection
  */
 export function shouldBypassCSRF(pathname: string): boolean {
-  return csrfExceptions.has(pathname) || pathname.startsWith('/api/webhook/');
+  return csrfExceptions.has(pathname);
 }
 
 /**

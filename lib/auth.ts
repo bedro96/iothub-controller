@@ -77,7 +77,9 @@ export async function createSession(userId: string, email: string, role: string)
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // Allow enabling secure cookies via env var for production/HTTPS environments.
+    // This lets local development run without HTTPS when ENABLE_SECURE_COOKIES is not set.
+    secure: process.env.ENABLE_SECURE_COOKIES === 'true',
     sameSite: 'lax',
     maxAge: SESSION_DURATION / 1000,
     path: '/',
@@ -95,12 +97,16 @@ export async function getSession(): Promise<SessionPayload | null> {
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
   
   if (!sessionCookie) {
+    try {
+      console.warn('getSession: no session cookie present');
+    } catch (e) { }
     return null;
   }
   
   // Verify token
   const payload = await verifyToken(sessionCookie.value);
   if (!payload) {
+    try { console.warn('getSession: invalid token payload'); } catch (e) { }
     return null;
   }
   
@@ -112,6 +118,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!session || session.expiresAt < new Date()) {
     // Session expired or doesn't exist
     await destroySession();
+    try { console.warn('getSession: session missing or expired'); } catch (e) { }
     return null;
   }
   

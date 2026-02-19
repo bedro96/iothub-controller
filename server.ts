@@ -229,7 +229,7 @@ app.prepare().then(() => {
         async function assignDeviceId(deviceUuid: string): Promise<string> {
           try {
             // Query for an available device_id where device_uuid is null
-            const availableDevice = await (prisma as any).deviceId.findFirst({
+            const availableDevice = await prisma.deviceId.findFirst({
               where: { deviceUuid: null },
               orderBy: { deviceId: 'asc' },
             });
@@ -239,7 +239,7 @@ app.prepare().then(() => {
             }
 
             // Update the device with the UUID
-            await (prisma as any).deviceId.update({
+            await prisma.deviceId.update({
               where: { id: availableDevice.id },
               data: { deviceUuid: deviceUuid },
             });

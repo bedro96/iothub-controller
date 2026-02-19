@@ -11,6 +11,7 @@
     "server:start": "ts-node --project tsconfig.server.json server.ts",
     "lint": "eslint",
     "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
     "db:push": "prisma db push",
     "db:init": "tsx scripts/init-db.ts"
   },
