@@ -38,14 +38,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete all DeviceId entries
-    await (prisma as any).deviceId.deleteMany({});
+    await prisma.deviceId.deleteMany({});
 
     // Delete all device-related data for this user
-    await (prisma as any).deviceMapping.deleteMany({
+    await prisma.deviceMapping.deleteMany({
       where: { userId: user.id },
     });
 
-    await (prisma as any).deviceCommand.deleteMany({
+    await prisma.deviceCommand.deleteMany({
       where: { userId: user.id },
     });
 
