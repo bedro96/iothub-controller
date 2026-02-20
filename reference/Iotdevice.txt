@@ -1,0 +1,106 @@
+/**
+ * iothub-registry-sdk-aad.js
+ * Azure IoT Hub "Service SDK" (azure-iothub) + DefaultAzureCredential로
+ * device identity 등록/삭제
+ *
+ * Prereqs:
+ *  - npm i azure-iothub @azure/identity
+ *  - 실행 환경에서 DefaultAzureCredential이 토큰을 얻을 수 있어야 함
+ *    (예: az login, Managed Identity, 환경변수 기반 SP 등) [3](https://learn.microsoft.com/en-us/javascript/api/overview/azure/identity-readme?view=azure-node-latest)[4](https://learn.microsoft.com/en-us/azure/developer/javascript/sdk/authentication/credential-chains)
+ *  - IoT Hub에 대해 Registry 관리 권한(RBAC) 필요 (IoT Hub Registry Contributor 등)
+ */
+
+import { DefaultAzureCredential } from "@azure/identity";
+import iothub from "azure-iothub";
+import { promisify } from "node:util";
+
+/**
+ * Registry 클라이언트 생성 (AAD/RBAC 기반)
+ *
+ * iotHubEndpoint 예:
+ *   "myhub.azure-devices.net"
+ *
+ * azure-iothub는 TokenCredential로 Registry를 만들 수 있음:
+ *   Registry.fromTokenCredential(iotHubEndpoint, credential) [1](https://github.com/Azure/azure-iot-sdk-node/issues/998)[2](https://www.npmjs.com/package/azure-iothub)
+ */
+function createRegistryClient(iotHubEndpoint) {
+  if (!iotHubEndpoint) throw new Error("iotHubEndpoint is required (e.g. <hub>.azure-devices.net)");
+
+  const credential = new DefaultAzureCredential(); // [3](https://learn.microsoft.com/en-us/javascript/api/overview/azure/identity-readme?view=azure-node-latest)[4](https://learn.microsoft.com/en-us/azure/developer/javascript/sdk/authentication/credential-chains)
+  const registry = iothub.Registry.fromTokenCredential(iotHubEndpoint, credential); // [1](https://github.com/Azure/azure-iot-sdk-node/issues/998)[2](https://www.npmjs.com/package/azure-iothub)
+  return registry;
+}
+
+/**
+ * [함수 1] 디바이스 등록(생성)
+ *
+ * azure-iothub는 device identities를 create/remove 할 수 있음 [2](https://www.npmjs.com/package/azure-iothub)
+ *
+ * @param {string} iotHubEndpoint  "<hub>.azure-devices.net"
+ * @param {string} deviceId
+ * @returns {Promise<object>} 생성된 device identity 정보
+ */
+export async function registerDevice(iotHubEndpoint, deviceId) {
+  if (!deviceId) throw new Error("deviceId is required.");
+
+  const registry = createRegistryClient(iotHubEndpoint);
+
+  // Callback 기반 API를 async/await로 쓰기 위해 promisify
+  const createAsync = promisify(registry.create).bind(registry);
+
+  // 최소 스키마: { deviceId }
+  const device = { deviceId };
+
+  // 반환값은 (deviceInfo, response) 형태일 수 있으므로 환경에 따라 다름
+  // 일반적으로 deviceInfo를 쓰면 됨.
+  const result = await createAsync(device);
+  // result 형태가 배열/객체로 올 수 있어 보정
+  // azure-iothub의 callback signature: (err, deviceInfo, res)
+  // promisify 시 result는 deviceInfo가 되는 것이 일반적
+  return result;
+}
+
+/**
+ * [함수 2] 디바이스 등록 삭제
+ *
+ * azure-iothub는 device identities를 remove 할 수 있음 [2](https://www.npmjs.com/package/azure-iothub)
+ *
+ * @param {string} iotHubEndpoint  "<hub>.azure-devices.net"
+ * @param {string} deviceId
+ * @returns {Promise<boolean>} 삭제 성공 여부
+ */
+export async function deleteDevice(iotHubEndpoint, deviceId) {
+  if (!deviceId) throw new Error("deviceId is required.");
+
+  const registry = createRegistryClient(iotHubEndpoint);
+
+  // Registry.remove(deviceId, callback)
+  const removeAsync = promisify(registry.remove).bind(registry);
+
+  await removeAsync(deviceId);
+  return true;
+}
+
+/**
+ * (옵션) 단독 실행 테스트
+ * 환경변수:
+ *  IOTHUB_ENDPOINT="<hub>.azure-devices.net"
+ *  DEVICE_ID="demo-device-001"
+ */
+if (import.meta.url === `file://${process.argv[1]}`) {
+  (async () => {
+    const endpoint = process.env.IOTHUB_ENDPOINT;
+    const deviceId = process.env.DEVICE_ID || `demo-device-${Date.now()}`;
+
+    console.log("Registering:", { endpoint, deviceId });
+    const created = await registerDevice(endpoint, deviceId);
+    console.log("Created:", created);
+
+    console.log("Deleting:", { endpoint, deviceId });
+    const ok = await deleteDevice(endpoint, deviceId);
+    console.log("Deleted:", ok);
+  })().catch((err) => {
+    console.error("Error:", err?.message || err);
+    process.exit(1);
+  });
+}
