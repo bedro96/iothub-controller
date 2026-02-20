@@ -49,7 +49,7 @@ export async function POST(
       
       // Create DeviceId entry (without UUID assigned yet - will be assigned on WebSocket connect)
       try {
-        await (prisma as any).deviceId.create({
+        await prisma.deviceId.create({
           data: {
             deviceId,
             deviceUuid: null,
