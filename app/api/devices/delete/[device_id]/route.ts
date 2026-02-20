@@ -53,12 +53,12 @@ export async function POST(
     }
 
     // Delete device mappings first
-    await (prisma as any).deviceMapping.deleteMany({
+    await prisma.deviceMapping.deleteMany({
       where: { deviceId: device_id },
     });
 
     // Delete device commands
-    await (prisma as any).deviceCommand.deleteMany({
+    await prisma.deviceCommand.deleteMany({
       where: { deviceId: device_id },
     });
 
