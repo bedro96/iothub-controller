@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Clear device UUID mappings (set deviceUuid to null)
-    await (prisma as any).deviceId.updateMany({
+    await prisma.deviceId.updateMany({
       data: {
         deviceUuid: null,
       },
