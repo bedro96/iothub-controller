@@ -31,7 +31,7 @@ export default function Home() {
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
     setUser(null)
-    router.push("/login")
+    router.push("/")
   }
 
   return (

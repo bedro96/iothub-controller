@@ -125,7 +125,7 @@ export default function IoTDashboardPage() {
             </div>
             <div className="flex items-center gap-4">
               <Button variant="outline" asChild>
-                <Link href="/">Home</Link>
+                <Link href="/admin">Admin Main</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/iot-settings">Settings</Link>

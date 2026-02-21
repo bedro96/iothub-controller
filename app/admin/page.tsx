@@ -1,13 +1,30 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ModeToggle } from "@/components/mode-toggle"
 import { LogOut, Settings, Users, Cpu, ChartSpline } from "lucide-react"
 
+type User = {
+  userId: string
+  email: string
+  role: string
+}
+
+function getUserFromSession(): Promise<User | null> {
+  return fetch('/api/auth/me', { credentials: 'include' })
+    .then(res => res.ok ? res.json().then(data => data.user) : null)
+    .catch(() => null)
+}
 export default function AdminPage() {
   const router = useRouter()
+  const [user, setUser] = useState<User | null>(null)
+  
+  useEffect(() => {
+    getUserFromSession().then(setUser)
+  }, [])
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
@@ -47,6 +64,9 @@ export default function AdminPage() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
           <div className="flex gap-4">
+            <span className="text-sm text-muted-foreground">
+                    {user?.email}
+                  </span>
             <ModeToggle />
             <Button onClick={handleLogout} variant="outline">
               <LogOut className="mr-2 h-4 w-4" />

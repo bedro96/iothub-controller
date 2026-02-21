@@ -116,7 +116,7 @@ export default function UserManagementPage() {
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-    router.push("/login")
+    router.push("/")
   }
 
   if (loading) {
@@ -134,7 +134,7 @@ export default function UserManagementPage() {
           <div className="flex items-center gap-4">
             <Button variant="outline" size="sm" onClick={() => router.push("/admin")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              Admin Home
             </Button>
             <h1 className="text-3xl font-bold">User Management</h1>
           </div>
