@@ -8,6 +8,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -46,7 +47,20 @@ async function main() {
     
     const deviceCommandCount = await (prisma as any).deviceCommand.count();
     console.log(`   Device Commands: ${deviceCommandCount} records`);
-    
+
+    // Create initial admin user if not exists
+    const adminEmail = 'admin@example.com';
+    const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
+    if (!existingAdmin) {
+      const username = 'admin';
+      const role = 'admin';
+      const hashedPassword = await bcrypt.hash('admin1234!', 10);
+      const adminUser = await prisma.user.create({ data: { username, email: adminEmail, role, password: hashedPassword } });
+      console.log(`Admin user created: ${adminUser.email}`);
+    } else {
+      console.log('Admin user already exists, skipping creation.');
+    }
+
     console.log('\n✨ Database initialization completed successfully!');
     console.log('\n📝 Collections created:');
     console.log('   - User');
