@@ -40,6 +40,14 @@ export async function getCSRFToken(): Promise<string | null> {
 }
 
 /**
+ * Clear CSRF token cookie
+ */
+export async function clearCSRFToken() {
+  const cookieStore = await cookies();
+  cookieStore.delete(CSRF_TOKEN_COOKIE);
+}
+
+/**
  * Verify CSRF token
  */
 export async function verifyCSRFToken(request: NextRequest): Promise<boolean> {
