@@ -84,6 +84,10 @@ export async function createSession(userId: string, email: string, role: string)
     maxAge: SESSION_DURATION / 1000,
     path: '/',
   });
+
+  // Set CSRF token cookie alongside the session
+  const { setCSRFToken } = await import('./csrf');
+  await setCSRFToken();
   
   return token;
 }
@@ -146,6 +150,10 @@ export async function destroySession() {
     // Remove cookie
     cookieStore.delete(SESSION_COOKIE_NAME);
   }
+
+  // Clear CSRF token cookie regardless of whether a session existed
+  const { clearCSRFToken } = await import('./csrf');
+  await clearCSRFToken();
 }
 
 /**
