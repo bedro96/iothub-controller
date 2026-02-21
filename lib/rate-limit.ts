@@ -11,7 +11,7 @@ export interface RateLimitConfig {
 
 const defaultConfig: RateLimitConfig = {
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 100,
+  maxRequests: 1000,
   message: 'Too many requests, please try again later',
 };
 
