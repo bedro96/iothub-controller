@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, ElementType } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ModeToggle } from "@/components/mode-toggle"
-import { Activity, Cpu, Signal, Thermometer, Gauge, TrendingUp, AlertTriangle } from "lucide-react"
+import { Activity, Cpu, Signal, Thermometer, Gauge, TrendingUp, AlertTriangle, Server, Wifi } from "lucide-react"
 import dynamic from 'next/dynamic'
 
 const DeviceGrid = dynamic(() => import('@/components/device-grid'), { ssr: false })
@@ -16,7 +16,9 @@ type DeviceMetric = {
   status: "online" | "offline" | "warning"
   temperature: number
   cpu: number
+  memory: number
   signal: number
+  networkRps: number
   lastUpdate: string
 }
 
@@ -33,7 +35,9 @@ export default function IoTDashboardPage() {
         status: "online",
         temperature: 22.5,
         cpu: 45,
+        memory: 62,
         signal: 95,
+        networkRps: 6,
         lastUpdate: new Date().toISOString(),
       },
       {
@@ -42,7 +46,9 @@ export default function IoTDashboardPage() {
         status: "online",
         temperature: 20.0,
         cpu: 32,
+        memory: 55,
         signal: 88,
+        networkRps: 4,
         lastUpdate: new Date(Date.now() - 5 * 60000).toISOString(),
       },
       {
@@ -51,7 +57,9 @@ export default function IoTDashboardPage() {
         status: "warning",
         temperature: 23.8,
         cpu: 78,
+        memory: 81,
         signal: 56,
+        networkRps: 12,
         lastUpdate: new Date(Date.now() - 15 * 60000).toISOString(),
       },
       {
@@ -60,7 +68,9 @@ export default function IoTDashboardPage() {
         status: "online",
         temperature: 24.2,
         cpu: 41,
+        memory: 47,
         signal: 92,
+        networkRps: 3,
         lastUpdate: new Date(Date.now() - 2 * 60000).toISOString(),
       },
       {
@@ -69,7 +79,9 @@ export default function IoTDashboardPage() {
         status: "offline",
         temperature: 0,
         cpu: 0,
+        memory: 0,
         signal: 0,
+        networkRps: 0,
         lastUpdate: new Date(Date.now() - 3600000).toISOString(),
       },
     ]
@@ -86,6 +98,8 @@ export default function IoTDashboardPage() {
   const activeDevices = devices.filter(d => d.status !== "offline")
   const avgTemperature = activeDevices.reduce((acc, d) => acc + d.temperature, 0) / Math.max(activeDevices.length, 1)
   const avgCpu = activeDevices.reduce((acc, d) => acc + d.cpu, 0) / Math.max(activeDevices.length, 1)
+  const avgMemory = activeDevices.reduce((acc, d) => acc + d.memory, 0) / Math.max(activeDevices.length, 1)
+  const avgNetworkRps = activeDevices.reduce((acc, d) => acc + d.networkRps, 0) / Math.max(activeDevices.length, 1)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -100,6 +114,40 @@ export default function IoTDashboardPage() {
     }
   }
 
+  // A compact speed meter used for CPU / Memory / Network
+  const SpeedMeter = ({
+    Icon,
+    label,
+    value,
+    unit,
+    percent,
+    color = 'bg-primary'
+  }: {
+    Icon: ElementType
+    label?: string
+    value: number | string
+    unit?: string
+    percent?: number
+    color?: string
+  }) => {
+    const p = Math.max(0, Math.min(100, typeof percent === 'number' ? percent : 0))
+
+    return (
+      <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start">
+          <div className="flex items-center gap-2">
+            <Icon className="h-4 w-4 text-muted-foreground" />
+            <div className="text-xs text-muted-foreground">{label}</div>
+          </div>
+          <div className="text-sm font-semibold">{value}{unit}</div>
+        </div>
+        <div className="w-28 bg-muted rounded-full h-2.5 overflow-hidden">
+          <div className={`${color} h-2.5 rounded-full transition-all`} style={{ width: `${p}%` }} />
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -110,6 +158,10 @@ export default function IoTDashboardPage() {
       </div>
     )
   }
+
+  // For network normalization (so small datasets still show a visible bar)
+  const networkCap = Math.max(50, avgNetworkRps * 1.5)
+  const networkPercent = (avgNetworkRps / networkCap) * 100
 
   return (
     <div className="min-h-screen bg-background">
@@ -219,25 +271,16 @@ export default function IoTDashboardPage() {
                 <Cpu className="h-5 w-5" />
                 System Performance
               </CardTitle>
-              <CardDescription>Average CPU usage across devices</CardDescription>
+              <CardDescription>Average CPU / Memory / Network across devices</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm font-medium">CPU Usage</span>
-                    <span className="text-sm text-muted-foreground">{avgCpu.toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2.5">
-                    <div 
-                      className="bg-primary h-2.5 rounded-full transition-all" 
-                      style={{ width: `${avgCpu}%` }}
-                    ></div>
-                  </div>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  System is running optimally
-                </div>
+              <div className="flex items-center gap-6">
+                <SpeedMeter Icon={Cpu} label="CPU" value={avgCpu.toFixed(1)} unit="%" percent={avgCpu} color="bg-primary" />
+                <SpeedMeter Icon={Server} label="Memory" value={avgMemory.toFixed(1)} unit="%" percent={avgMemory} color="bg-emerald-500" />
+                <SpeedMeter Icon={Wifi} label="Network" value={avgNetworkRps.toFixed(1)} unit=" r/s" percent={networkPercent} color="bg-sky-500" />
+              </div>
+              <div className="text-xs text-muted-foreground mt-4">
+                System is running optimally
               </div>
             </CardContent>
           </Card>
