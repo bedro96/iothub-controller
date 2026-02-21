@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
+import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { LogOut } from "lucide-react"
 
 type User = {
@@ -104,9 +105,10 @@ export default function Home() {
           {user && (
             <div className="mt-8">
               <h3 className="text-2xl font-semibold mb-4">Your Dashboard</h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-8">
                 You are logged in as <strong>{user.email}</strong> ({user.role})
               </p>
+              <ChartAreaInteractive />
             </div>
           )}
         </div>
