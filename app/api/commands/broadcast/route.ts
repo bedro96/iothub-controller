@@ -5,27 +5,6 @@ import { MessageEnvelope } from '@/lib/message-envelope';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get user email from header for authorization
-    const userEmail = request.headers.get('x-user-email');
-    
-    if (!userEmail) {
-      return NextResponse.json(
-        { error: 'User email required' },
-        { status: 401 }
-      );
-    }
-
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
 
     // Parse request body
     const body = await request.json();

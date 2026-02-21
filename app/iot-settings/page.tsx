@@ -38,7 +38,29 @@ export default function IoTSettingsPage() {
 
   const [saved, setSaved] = useState(false)
   const [generating, setGenerating] = useState(false)
-
+  const handleClearMappings = async () => {
+    if (!confirm("Are you sure you want to reset the device mapping table? This will cause all devices to be reassigned starting from simdevice0001.")) return
+    try {
+      await ensureCsrf()
+      const resp = await fetchWithCsrf("/api/devices/clear-mappings", {
+        method: 'POST',
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: 'Failed' }))
+        alert(err.error || 'Failed to clear mappings')
+        return
+      }
+      alert('Device mapping table reset successfully. Device IDs will be reassigned starting from simdevice0001.')
+      // Reset device mapping state
+      setDeviceMapping({
+        issued_out_number_of_devices: "0",
+        next_device_id: "simdevice0001",
+      })
+    } catch (e) {
+      console.error(e)
+      alert('Error resetting device mappings')
+    }
+  }
   const handleGenerateDevices = async (count = 1000) => {
     if (!confirm(`Generate ${count} simulated devices? This may take a while.`)) return
     try {
@@ -292,9 +314,7 @@ export default function IoTSettingsPage() {
                   </HoverCard>
                   <HoverCard openDelay={10} closeDelay={100}>
                     <HoverCardTrigger asChild>
-                      <Button variant="outline" onClick={(e) => {
-                        e.preventDefault()
-                        }}>
+                      <Button variant="outline" onClick={(e) => handleClearMappings()}>
                         2. Reset Mapping table for new simulation project
                       </Button>
                     </HoverCardTrigger>
@@ -310,17 +330,8 @@ export default function IoTSettingsPage() {
                 </div>
                 <div>
                   <Label htmlFor="herd_ready">Herd Ready</Label>
-                  <Input
-                    id="herd_ready"
-                    type="text"
-                    value={deviceSettings.herd_ready}
-                    onChange={(e) =>
-                      setDeviceSettings({ ...deviceSettings, herd_ready: e.target.value })
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Set to "true" to enable herd mode for device simulator
-                  </p>
+                  
+                  
                 </div>
               </div>
               

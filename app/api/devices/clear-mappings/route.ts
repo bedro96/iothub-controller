@@ -1,29 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCSRFToken } from '@/lib/csrf';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get user email from header for authorization
-    const userEmail = request.headers.get('x-user-email');
-    
-    if (!userEmail) {
+    const token = await getCSRFToken()
+    if(!token) {
       return NextResponse.json(
-        { error: 'User email required' },
-        { status: 401 }
-      );
+        { error: 'CSRF token missing or invalid' },
+        { status: 403 }
+      )
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
 
     // Clear device UUID mappings (set deviceUuid to null)
     await (prisma as any).deviceId.updateMany({
