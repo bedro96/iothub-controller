@@ -1,91 +1,94 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ModeToggle } from "@/components/mode-toggle"
-import { Activity, Cpu, Signal, Thermometer, Gauge, TrendingUp, AlertTriangle } from "lucide-react"
+import { Activity, Signal, Thermometer, Gauge, TrendingUp, AlertTriangle, Droplets } from "lucide-react"
 import dynamic from 'next/dynamic'
 
 const DeviceGrid = dynamic(() => import('@/components/device-grid'), { ssr: false })
+
+type TelemetryRecord = {
+  id: string
+  deviceId: string
+  type: string | null
+  modelId: string | null
+  status: string | null
+  temp: number | null
+  humidity: number | null
+  ts: string | null
+  createdAt: string
+}
 
 type DeviceMetric = {
   id: string
   name: string
   status: "online" | "offline" | "warning"
   temperature: number
-  cpu: number
-  signal: number
+  humidity: number
   lastUpdate: string
+}
+
+/** Derive a DeviceMetric from the latest telemetry record for a device. */
+function telemetryToMetric(record: TelemetryRecord): DeviceMetric {
+  const deviceStatus = record.status?.toLowerCase() ?? ''
+  const status: DeviceMetric["status"] =
+    deviceStatus === "online" ? "online" :
+    deviceStatus === "warning" ? "warning" : "offline"
+
+  return {
+    id: record.deviceId,
+    name: record.deviceId,
+    status,
+    temperature: record.temp ?? 0,
+    humidity: record.humidity ?? 0,
+    lastUpdate: record.ts ?? record.createdAt,
+  }
 }
 
 export default function IoTDashboardPage() {
   const [devices, setDevices] = useState<DeviceMetric[]>([])
+  const [telemetry, setTelemetry] = useState<TelemetryRecord[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Simulate fetching device data
-    const mockDevices: DeviceMetric[] = [
-      {
-        id: "1",
-        name: "Temperature Sensor - Living Room",
-        status: "online",
-        temperature: 22.5,
-        cpu: 45,
-        signal: 95,
-        lastUpdate: new Date().toISOString(),
-      },
-      {
-        id: "2",
-        name: "Smart Thermostat - Bedroom",
-        status: "online",
-        temperature: 20.0,
-        cpu: 32,
-        signal: 88,
-        lastUpdate: new Date(Date.now() - 5 * 60000).toISOString(),
-      },
-      {
-        id: "3",
-        name: "Motion Sensor - Entrance",
-        status: "warning",
-        temperature: 23.8,
-        cpu: 78,
-        signal: 56,
-        lastUpdate: new Date(Date.now() - 15 * 60000).toISOString(),
-      },
-      {
-        id: "4",
-        name: "Humidity Sensor - Bathroom",
-        status: "online",
-        temperature: 24.2,
-        cpu: 41,
-        signal: 92,
-        lastUpdate: new Date(Date.now() - 2 * 60000).toISOString(),
-      },
-      {
-        id: "5",
-        name: "Air Quality Monitor - Kitchen",
-        status: "offline",
-        temperature: 0,
-        cpu: 0,
-        signal: 0,
-        lastUpdate: new Date(Date.now() - 3600000).toISOString(),
-      },
-    ]
+  const fetchTelemetry = useCallback(async () => {
+    try {
+      const res = await fetch('/api/telemetry?limit=200')
+      if (!res.ok) return
+      const data: { telemetry: TelemetryRecord[] } = await res.json()
+      setTelemetry(data.telemetry)
 
-    setTimeout(() => {
-      setDevices(mockDevices)
+      // Build one DeviceMetric per device using the most recent record
+      const latestByDevice = new Map<string, TelemetryRecord>()
+      for (const record of data.telemetry) {
+        if (!latestByDevice.has(record.deviceId)) {
+          latestByDevice.set(record.deviceId, record)
+        }
+      }
+      setDevices(Array.from(latestByDevice.values()).map(telemetryToMetric))
+    } catch (err) {
+      // Log fetch errors for debugging while keeping graceful degradation
+      console.error('Failed to fetch telemetry:', err)
+    } finally {
       setLoading(false)
-    }, 500)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchTelemetry()
+    // Refresh every 10 seconds to pick up new D2C messages
+    const interval = setInterval(fetchTelemetry, 10000)
+    return () => clearInterval(interval)
+  }, [fetchTelemetry])
 
   const onlineDevices = devices.filter(d => d.status === "online").length
   const offlineDevices = devices.filter(d => d.status === "offline").length
   const warningDevices = devices.filter(d => d.status === "warning").length
   const activeDevices = devices.filter(d => d.status !== "offline")
   const avgTemperature = activeDevices.reduce((acc, d) => acc + d.temperature, 0) / Math.max(activeDevices.length, 1)
-  const avgCpu = activeDevices.reduce((acc, d) => acc + d.cpu, 0) / Math.max(activeDevices.length, 1)
+  const avgHumidity = activeDevices.reduce((acc, d) => acc + d.humidity, 0) / Math.max(activeDevices.length, 1)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -139,7 +142,7 @@ export default function IoTDashboardPage() {
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Device Overview</h2>
           <p className="text-muted-foreground">
-            Real-time monitoring of all connected IoT devices
+            Real-time monitoring of all connected IoT devices (D2C telemetry)
           </p>
         </div>
 
@@ -153,7 +156,7 @@ export default function IoTDashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{devices.length}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Connected devices
+                Reporting devices
               </p>
             </CardContent>
           </Card>
@@ -211,32 +214,29 @@ export default function IoTDashboardPage() {
           </Card>
         </div>
 
-        {/* System Performance */}
+        {/* Telemetry Summary */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Cpu className="h-5 w-5" />
-                System Performance
+                <Droplets className="h-5 w-5" />
+                Avg Humidity
               </CardTitle>
-              <CardDescription>Average CPU usage across devices</CardDescription>
+              <CardDescription>Average humidity across active devices</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between mb-2">
-                    <span className="text-sm font-medium">CPU Usage</span>
-                    <span className="text-sm text-muted-foreground">{avgCpu.toFixed(1)}%</span>
+                    <span className="text-sm font-medium">Humidity</span>
+                    <span className="text-sm text-muted-foreground">{avgHumidity.toFixed(1)}%</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2.5">
-                    <div 
-                      className="bg-primary h-2.5 rounded-full transition-all" 
-                      style={{ width: `${avgCpu}%` }}
+                    <div
+                      className="bg-primary h-2.5 rounded-full transition-all"
+                      style={{ width: `${Math.min(avgHumidity, 100)}%` }}
                     ></div>
                   </div>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  System is running optimally
                 </div>
               </div>
             </CardContent>
@@ -248,17 +248,17 @@ export default function IoTDashboardPage() {
                 <TrendingUp className="h-5 w-5" />
                 Activity Trend
               </CardTitle>
-              <CardDescription>Device activity in the last hour</CardDescription>
+              <CardDescription>D2C messages received from devices</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Data Points Received:</span>
-                  <span className="font-medium">1,247</span>
+                  <span>Total Messages:</span>
+                  <span className="font-medium">{telemetry.length}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>Commands Sent:</span>
-                  <span className="font-medium">89</span>
+                  <span>Unique Devices:</span>
+                  <span className="font-medium">{devices.length}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Alerts Generated:</span>
@@ -279,64 +279,105 @@ export default function IoTDashboardPage() {
         </div>
 
         {/* Device List */}
-        <Card>
+        <Card className="mb-8">
           <CardHeader>
             <CardTitle>Device Status</CardTitle>
-            <CardDescription>Detailed view of all connected devices</CardDescription>
+            <CardDescription>Latest telemetry per device from IoT Hub D2C messages</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {devices.map((device) => (
-                <div 
-                  key={device.id} 
-                  className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-1 mb-4 md:mb-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold">{device.name}</h3>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(device.status)}`}>
-                        {device.status}
-                      </span>
+            {devices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No telemetry received yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {devices.map((device) => (
+                  <div
+                    key={device.id}
+                    className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 mb-4 md:mb-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-semibold">{device.name}</h3>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(device.status)}`}>
+                          {device.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Last updated: {new Date(device.lastUpdate).toLocaleString()}
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Last updated: {new Date(device.lastUpdate).toLocaleString()}
-                    </p>
+
+                    {device.status !== "offline" && (
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">Temperature</div>
+                          <div className="flex items-center justify-center gap-1">
+                            <Thermometer className="h-4 w-4" />
+                            <span className="font-semibold">{device.temperature.toFixed(1)}°C</span>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">Humidity</div>
+                          <div className="flex items-center justify-center gap-1">
+                            <Droplets className="h-4 w-4" />
+                            <span className="font-semibold">{device.humidity.toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {device.status === "offline" && (
+                      <div className="text-sm text-muted-foreground">
+                        Device is currently offline
+                      </div>
+                    )}
                   </div>
-                  
-                  {device.status !== "offline" && (
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Temperature</div>
-                        <div className="flex items-center justify-center gap-1">
-                          <Thermometer className="h-4 w-4" />
-                          <span className="font-semibold">{device.temperature}°C</span>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">CPU</div>
-                        <div className="flex items-center justify-center gap-1">
-                          <Cpu className="h-4 w-4" />
-                          <span className="font-semibold">{device.cpu}%</span>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Signal</div>
-                        <div className="flex items-center justify-center gap-1">
-                          <Signal className="h-4 w-4" />
-                          <span className="font-semibold">{device.signal}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {device.status === "offline" && (
-                    <div className="text-sm text-muted-foreground">
-                      Device is currently offline
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Telemetry Messages */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent D2C Messages</CardTitle>
+            <CardDescription>Latest raw telemetry messages received from IoT Hub</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {telemetry.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No messages received yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left pb-2 pr-4">Device ID</th>
+                      <th className="text-left pb-2 pr-4">Temp (°C)</th>
+                      <th className="text-left pb-2 pr-4">Humidity (%)</th>
+                      <th className="text-left pb-2 pr-4">Status</th>
+                      <th className="text-left pb-2">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {telemetry.slice(0, 20).map((record) => (
+                      <tr key={record.id} className="border-b last:border-0 hover:bg-muted/50">
+                        <td className="py-2 pr-4 font-mono text-xs">{record.deviceId}</td>
+                        <td className="py-2 pr-4">{record.temp?.toFixed(1) ?? '—'}</td>
+                        <td className="py-2 pr-4">{record.humidity?.toFixed(1) ?? '—'}</td>
+                        <td className="py-2 pr-4">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getStatusColor(record.status ?? '')}`}>
+                            {record.status || '—'}
+                          </span>
+                        </td>
+                        <td className="py-2 text-muted-foreground text-xs">
+                          {record.ts ? new Date(record.ts).toLocaleString() : new Date(record.createdAt).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

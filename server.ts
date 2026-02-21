@@ -24,6 +24,7 @@ import { MessageEnvelope } from './lib/message-envelope';
 import { randomUUID } from 'crypto';
 // Start Node-only background tasks (rate-limit cleanup)
 import './lib/rate-limit-node';
+import { startIoTHubConsumer } from './lib/iothub-consumer';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
@@ -394,5 +395,10 @@ app.prepare().then(() => {
     console.log(`> Ready on http://${hostname}:${port}`);
     console.log(`> WebSocket ready on ws://${hostname}:${port}/socket`);
     console.log(`> Device WebSocket ready on ws://${hostname}:${port}/ws/{uuid}`);
+
+    // Start the IoT Hub D2C consumer (Device-to-Cloud telemetry)
+    startIoTHubConsumer().catch((error) => {
+      logError(error, { context: 'Failed to start IoT Hub D2C consumer' });
+    });
   });
 });
