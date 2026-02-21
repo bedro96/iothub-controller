@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import useCsrf from "@/components/hooks/useCsrf"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -28,6 +29,7 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const { ensureCsrf, fetchWithCsrf } = useCsrf()
 
   const fetchUsers = async () => {
     try {
@@ -56,6 +58,12 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     fetchUsers()
+    // ensure CSRF token ready for subsequent POST/PATCH/DELETE requests
+    ;(async () => {
+      try {
+        await ensureCsrf()
+      } catch (e) {}
+    })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -65,9 +73,8 @@ export default function UserManagementPage() {
     }
 
     try {
-      const response = await fetch(`/api/users?id=${userId}`, {
+      const response = await fetchWithCsrf(`/api/users?id=${userId}`, {
         method: "DELETE",
-        credentials: "include",
       })
 
       if (!response.ok) {
@@ -85,13 +92,11 @@ export default function UserManagementPage() {
     const newRole = currentRole === "admin" ? "user" : "admin"
 
     try {
-      const response = await fetch("/api/users", {
+      await ensureCsrf()
+      const response = await fetchWithCsrf("/api/users", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: userId, role: newRole }),
-        credentials: "include",
       })
 
       if (!response.ok) {

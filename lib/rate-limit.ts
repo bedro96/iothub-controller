@@ -124,6 +124,11 @@ export function shouldBypassRateLimit(request: NextRequest): boolean {
   
   // Check if route is in allowlist (e.g., health checks)
   const pathname = request.nextUrl.pathname;
+  // Exempt CSRF token endpoint from rate limiting so clients can fetch tokens
+  // without being blocked. Add additional routes here as needed.
+  if (pathname === '/api/auth/csrf') {
+    return true
+  }
   if (pathname === '/api/health' || pathname === '/api/status') {
     return true;
   }

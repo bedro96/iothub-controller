@@ -4,17 +4,23 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ModeToggle } from "@/components/mode-toggle"
-import { LogOut, Settings, Users, Cpu } from "lucide-react"
+import { LogOut, Settings, Users, Cpu, ChartSpline } from "lucide-react"
 
 export default function AdminPage() {
   const router = useRouter()
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-    router.push("/login")
+    router.push("/")
   }
 
   const cards = [
+    {
+      title: "IoT Dashboard",
+      description: "Monitor simulator devices at glance. View device status, recent activity, and performance metrics.",
+      icon: ChartSpline,
+      href: "/iot-dashboard",
+    },
     {
       title: "IoT Settings",
       description: "Configure IoT device settings, network options, and notifications.",

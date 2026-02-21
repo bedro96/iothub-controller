@@ -7,71 +7,82 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ModeToggle } from "@/components/mode-toggle"
-import { Settings, Bell, Shield, Wifi, Database, Save, RefreshCw } from "lucide-react"
+import { Settings, Shield, Wifi, Database, Save, RefreshCw } from "lucide-react"
+import useCsrf from "@/components/hooks/useCsrf"
 
 export default function IoTSettingsPage() {
+  const { ensureCsrf, fetchWithCsrf } = useCsrf()
   const [deviceSettings, setDeviceSettings] = useState({
-    deviceName: "IoT Hub Controller",
-    refreshInterval: "30",
-    dataRetention: "90",
-    apiEndpoint: "https://api.example.com/iot",
-    apiKey: "••••••••••••••••",
+    initial_retry_timeout: "30",
+    max_retry: "10",
+    message_interval_seconds: "5",
+    herd_ready: "false",
   })
 
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: false,
-    alertThreshold: "75",
-    notificationEmail: "admin@example.com",
-  })
-
-  const [networkSettings, setNetworkSettings] = useState({
-    mqttBroker: "mqtt://broker.example.com:1883",
-    mqttUsername: "iot_user",
-    mqttPassword: "••••••••",
-    websocketPort: "8080",
-  })
-
-  const [securitySettings, setSecuritySettings] = useState({
-    enableSSL: true,
-    enableAuth: true,
-    enableLogging: true,
+  const [iotServerSettings, setIotServerSettings] = useState({
+    iot_connection_string: "HostName=s1toptest01.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=XVYaB+sHrscvTc7JDI6px5o5DAMp635GYAIoTH0hdwg=",
+    iot_primary_key_device: "pb4CJgdsz1mGnnvSy7LOt6qLx+0xU6jQCYjkThvWjlY=",
+    iot_secondary_key_device: "cxiJ+dGOnvB7PNtz8bkGnWnTM6BBQI2J62DC3CV/wvw=",
+    iot_eventhub_connection_string: "Endpoint=sb://ihsuprodseres019dednamespace.servicebus.windows.net/;SharedAccessKeyName=iothubowner;SharedAccessKey=XVYaB+sHrscvTc7JDI6px5o5DAMp635GYAIoTH0hdwg=;EntityPath=iothub-ehub-s1toptest0-56253173-ddac85782f"
   })
 
   const [saved, setSaved] = useState(false)
 
-  const handleSaveSettings = () => {
-    // Simulate saving settings
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+  const handleSaveSettings = async () => {
+    await ensureCsrf()
+    // For each values in deviceSettings and iotServerSettings, save to .env file via API route
+    for (const [key, value] of Object.entries(deviceSettings)) {
+      await ensureCsrf()
+      const statsResponse  = await fetchWithCsrf("/api/dotenv", {
+          method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+          body: JSON.stringify({ variable: key.toUpperCase(), value })
+      }).catch((err: Error) => {
+        console.error(`Failed to save setting ${key}:`, err)
+      })
+      if (statsResponse.ok) {
+        const data = await statsResponse.json()
+        setDeviceSettings(prev => ({ ...prev, [key.toLocaleLowerCase()]: data.value }))
+      }
+    }
+
+    for (const [key, value] of Object.entries(iotServerSettings)) {
+      await ensureCsrf()
+      const statsResponse  = await fetchWithCsrf("/api/dotenv", {
+          method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+          body: JSON.stringify({ variable: key.toUpperCase(), value })
+      }).catch((err: Error) => {
+        console.error(`Failed to save setting ${key}:`, err)
+      })
+      if(statsResponse.ok) {
+        const data = await statsResponse.json()
+        setIotServerSettings(prev => ({ ...prev, [key.toLocaleLowerCase()]: data.value }))
+      }
+    }
+    setSaved(false)
+    
   }
 
   const handleResetToDefaults = () => {
     if (confirm("Are you sure you want to reset all settings to default values?")) {
       setDeviceSettings({
-        deviceName: "IoT Hub Controller",
-        refreshInterval: "30",
-        dataRetention: "90",
-        apiEndpoint: "https://api.example.com/iot",
-        apiKey: "••••••••••••••••",
+        initial_retry_timeout: "30",
+        max_retry: "10",
+        message_interval_seconds: "5",
+        herd_ready: "false",
       })
-      setNotificationSettings({
-        emailNotifications: true,
-        pushNotifications: false,
-        alertThreshold: "75",
-        notificationEmail: "admin@example.com",
+      setIotServerSettings({
+        iot_connection_string: "HostName=s1toptest01.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=XVYaB+sHrscvTc7JDI6px5o5DAMp635GYAIoTH0hdwg=",
+        iot_primary_key_device: "pb4CJgdsz1mGnnvSy7LOt6qLx+0xU6jQCYjkThvWjlY=",
+        iot_secondary_key_device: "cxiJ+dGOnvB7PNtz8bkGnWnTM6BBQI2J62DC3CV/wvw=",
+        iot_eventhub_connection_string: "Endpoint=sb://ihsuprodseres019dednamespace.servicebus.windows.net/;SharedAccessKeyName=iothubowner;SharedAccessKey=XVYaB+sHrscvTc7JDI6px5o5DAMp635GYAIoTH0hdwg=;EntityPath=iothub-ehub-s1toptest0-56253173-ddac85782f"
       })
-      setNetworkSettings({
-        mqttBroker: "mqtt://broker.example.com:1883",
-        mqttUsername: "iot_user",
-        mqttPassword: "••••••••",
-        websocketPort: "8080",
-      })
-      setSecuritySettings({
-        enableSSL: true,
-        enableAuth: true,
-        enableLogging: true,
-      })
+
     }
   }
 
@@ -86,7 +97,7 @@ export default function IoTSettingsPage() {
             </div>
             <div className="flex items-center gap-4">
               <Button variant="outline" asChild>
-                <Link href="/">Home</Link>
+                <Link href="/admin">Admin Main</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/iot-dashboard">Dashboard</Link>
@@ -101,9 +112,9 @@ export default function IoTSettingsPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">System Settings</h2>
+          <h2 className="text-3xl font-bold mb-2">Simulator Environment Settings</h2>
           <p className="text-muted-foreground">
-            Configure your IoT Hub Controller settings and preferences
+            Configure device simulator, IoT Hub connection strings.
           </p>
         </div>
 
@@ -124,275 +135,127 @@ export default function IoTSettingsPage() {
                 Device Settings
               </CardTitle>
               <CardDescription>
-                Configure general device and system settings
+                Configure device simulator settings
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="deviceName">Device Name</Label>
+                  <Label htmlFor="initial_retry_timeout">Initial Retry Timeout (seconds)</Label>
                   <Input
-                    id="deviceName"
-                    value={deviceSettings.deviceName}
+                    id="initial_retry_timeout"
+                    type="number"
+                    value={deviceSettings.initial_retry_timeout}
                     onChange={(e) =>
-                      setDeviceSettings({ ...deviceSettings, deviceName: e.target.value })
+                      setDeviceSettings({ ...deviceSettings, initial_retry_timeout: e.target.value })
                     }
                   />
                 </div>
                 <div>
-                  <Label htmlFor="refreshInterval">Refresh Interval (seconds)</Label>
+                  <Label htmlFor="max_retry_timeout">Max Retry Timeout (seconds)</Label>
                   <Input
-                    id="refreshInterval"
+                    id="max_retry_timeout"
                     type="number"
-                    value={deviceSettings.refreshInterval}
+                    value={deviceSettings.max_retry}
                     onChange={(e) =>
-                      setDeviceSettings({ ...deviceSettings, refreshInterval: e.target.value })
+                      setDeviceSettings({ ...deviceSettings, max_retry_timeout: e.target.value })
                     }
                   />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="dataRetention">Data Retention (days)</Label>
+                  <Label htmlFor="message_interval_seconds">Message Interval (seconds)</Label>
                   <Input
-                    id="dataRetention"
+                    id="message_interval_seconds"
                     type="number"
-                    value={deviceSettings.dataRetention}
+                    value={deviceSettings.message_interval_seconds}
                     onChange={(e) =>
-                      setDeviceSettings({ ...deviceSettings, dataRetention: e.target.value })
+                      setDeviceSettings({ ...deviceSettings, message_interval_seconds: e.target.value })
                     }
                   />
                 </div>
                 <div>
-                  <Label htmlFor="apiEndpoint">API Endpoint</Label>
+                  <Label htmlFor="herd_ready">Herd Ready</Label>
                   <Input
-                    id="apiEndpoint"
-                    value={deviceSettings.apiEndpoint}
+                    id="herd_ready"
+                    type="text"
+                    value={deviceSettings.herd_ready}
                     onChange={(e) =>
-                      setDeviceSettings({ ...deviceSettings, apiEndpoint: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="apiKey">API Key</Label>
-                <Input
-                  id="apiKey"
-                  type="password"
-                  value={deviceSettings.apiKey}
-                  onChange={(e) =>
-                    setDeviceSettings({ ...deviceSettings, apiKey: e.target.value })
-                  }
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Keep your API key secure and never share it publicly
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Notification Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notification Settings
-              </CardTitle>
-              <CardDescription>
-                Configure alert and notification preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="emailNotifications"
-                    checked={notificationSettings.emailNotifications}
-                    onChange={(e) =>
-                      setNotificationSettings({
-                        ...notificationSettings,
-                        emailNotifications: e.target.checked,
-                      })
-                    }
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="emailNotifications" className="cursor-pointer">
-                    Enable Email Notifications
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="pushNotifications"
-                    checked={notificationSettings.pushNotifications}
-                    onChange={(e) =>
-                      setNotificationSettings({
-                        ...notificationSettings,
-                        pushNotifications: e.target.checked,
-                      })
-                    }
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="pushNotifications" className="cursor-pointer">
-                    Enable Push Notifications
-                  </Label>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="alertThreshold">Alert Threshold (%)</Label>
-                  <Input
-                    id="alertThreshold"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={notificationSettings.alertThreshold}
-                    onChange={(e) =>
-                      setNotificationSettings({
-                        ...notificationSettings,
-                        alertThreshold: e.target.value,
-                      })
+                      setDeviceSettings({ ...deviceSettings, herd_ready: e.target.value })
                     }
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Trigger alerts when metrics exceed this threshold
+                    Set to "true" to enable herd mode for device simulator
                   </p>
                 </div>
-                <div>
-                  <Label htmlFor="notificationEmail">Notification Email</Label>
-                  <Input
-                    id="notificationEmail"
-                    type="email"
-                    value={notificationSettings.notificationEmail}
-                    onChange={(e) =>
-                      setNotificationSettings({
-                        ...notificationSettings,
-                        notificationEmail: e.target.value,
-                      })
-                    }
-                  />
-                </div>
               </div>
+              
             </CardContent>
           </Card>
 
-          {/* Network Settings */}
+          
+
+          {/* Connection String Settings */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wifi className="h-5 w-5" />
-                Network & Connection Settings
+                Iot Hub Connection Settings
               </CardTitle>
               <CardDescription>
-                Configure MQTT broker and network connections
+                Configure Iot Hub Connection Settings and save back to .env file
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="mqttBroker">MQTT Broker URL</Label>
+                  <Label htmlFor="iot_connection_string">Iot Hub Connection String for device</Label>
                   <Input
-                    id="mqttBroker"
-                    value={networkSettings.mqttBroker}
+                    id="iot_connection_string"
+                    value={iotServerSettings.iot_connection_string}
                     onChange={(e) =>
-                      setNetworkSettings({ ...networkSettings, mqttBroker: e.target.value })
+                      setIotServerSettings({ ...iotServerSettings, iot_connection_string: e.target.value })
                     }
                   />
                 </div>
                 <div>
-                  <Label htmlFor="websocketPort">WebSocket Port</Label>
+                  <Label htmlFor="iot_eventhub_connection_string">Iot EventHub Connection String</Label>
                   <Input
-                    id="websocketPort"
-                    type="number"
-                    value={networkSettings.websocketPort}
+                    id="iot_eventhub_connection_string"
+                    value={iotServerSettings.iot_eventhub_connection_string}
                     onChange={(e) =>
-                      setNetworkSettings({ ...networkSettings, websocketPort: e.target.value })
+                      setIotServerSettings({ ...iotServerSettings, iot_eventhub_connection_string: e.target.value })
                     }
                   />
                 </div>
+                
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="mqttUsername">MQTT Username</Label>
+                  <Label htmlFor="iot_primary_key_device">Iot Primary Key (Device)</Label>
                   <Input
-                    id="mqttUsername"
-                    value={networkSettings.mqttUsername}
+                    id="iot_primary_key_device"
+                    value={iotServerSettings.iot_primary_key_device}
                     onChange={(e) =>
-                      setNetworkSettings({ ...networkSettings, mqttUsername: e.target.value })
+                      setIotServerSettings({ ...iotServerSettings, iot_primary_key_device: e.target.value })
                     }
                   />
                 </div>
                 <div>
-                  <Label htmlFor="mqttPassword">MQTT Password</Label>
+                  <Label htmlFor="iot_secondary_key_device">Iot Secondary Key (Device)</Label>
                   <Input
-                    id="mqttPassword"
-                    type="password"
-                    value={networkSettings.mqttPassword}
+                    id="iot_secondary_key_device"
+                    value={iotServerSettings.iot_secondary_key_device}
                     onChange={(e) =>
-                      setNetworkSettings({ ...networkSettings, mqttPassword: e.target.value })
+                      setIotServerSettings({ ...iotServerSettings, iot_secondary_key_device: e.target.value })
                     }
                   />
                 </div>
+                
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Security Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Security Settings
-              </CardTitle>
-              <CardDescription>
-                Configure security and access control settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="enableSSL"
-                    checked={securitySettings.enableSSL}
-                    onChange={(e) =>
-                      setSecuritySettings({ ...securitySettings, enableSSL: e.target.checked })
-                    }
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="enableSSL" className="cursor-pointer">
-                    Enable SSL/TLS Encryption
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="enableAuth"
-                    checked={securitySettings.enableAuth}
-                    onChange={(e) =>
-                      setSecuritySettings({ ...securitySettings, enableAuth: e.target.checked })
-                    }
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="enableAuth" className="cursor-pointer">
-                    Require Authentication for API Access
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="enableLogging"
-                    checked={securitySettings.enableLogging}
-                    onChange={(e) =>
-                      setSecuritySettings({ ...securitySettings, enableLogging: e.target.checked })
-                    }
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="enableLogging" className="cursor-pointer">
-                    Enable Audit Logging
-                  </Label>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div></div>
               </div>
             </CardContent>
           </Card>
@@ -449,3 +312,4 @@ export default function IoTSettingsPage() {
     </div>
   )
 }
+

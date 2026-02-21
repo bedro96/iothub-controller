@@ -380,9 +380,9 @@ app.prepare().then(() => {
         });
       });
     } else {
-      // Not a device WebSocket, destroy the connection
-      socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
-      socket.destroy();
+      // Not a device WebSocket — do not destroy the socket here.
+      // Let other upgrade handlers (e.g. Next/Turbopack HMR) process the upgrade.
+      return;
     }
   });
 
@@ -397,8 +397,13 @@ app.prepare().then(() => {
     console.log(`> Device WebSocket ready on ws://${hostname}:${port}/ws/{uuid}`);
 
     // Start the IoT Hub D2C consumer (Device-to-Cloud telemetry)
-    startIoTHubConsumer().catch((error) => {
-      logError(error, { context: 'Failed to start IoT Hub D2C consumer' });
-    });
+    // The consumer is optional in development and may be run as a separate process.
+    if (process.env.IOT_CONSUMER_ENABLED === 'true') {
+      startIoTHubConsumer().catch((error) => {
+        logError(error, { context: 'Failed to start IoT Hub D2C consumer' });
+      });
+    } else {
+      logInfo('IoT Hub consumer not started (IOT_CONSUMER_ENABLED != true)');
+    }
   });
 });
