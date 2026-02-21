@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Activity, Cpu, Signal, Thermometer, Gauge, TrendingUp, AlertTriangle } from "lucide-react"
+import dynamic from 'next/dynamic'
+
+const DeviceGrid = dynamic(() => import('@/components/device-grid'), { ssr: false })
 
 type DeviceMetric = {
   id: string
@@ -268,6 +271,11 @@ export default function IoTDashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Device Grid */}
+        <div className="mb-8">
+          <DeviceGrid totalDevices={1000} />
         </div>
 
         {/* Device List */}
