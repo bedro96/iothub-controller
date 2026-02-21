@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { randomUUID } from 'crypto';
-import { logInfo } from '@/lib/logger';
+import { getCSRFToken } from '@/lib/csrf';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ number_of_devices: string }> }
 ) {
   try {
+    const token = await getCSRFToken()
+    if(!token) {
+      return NextResponse.json(
+        { error: 'CSRF token missing or invalid' },
+        { status: 403 }
+      )
+    }
     const { number_of_devices } = await params;
     const numberOfDevices = parseInt(number_of_devices, 10);
 
@@ -17,52 +23,20 @@ export async function POST(
         { status: 400 }
       );
     }
-
-    // Get user email from header for authorization
-    const userEmail = request.headers.get('x-user-email');
     
-    if (!userEmail) {
-      return NextResponse.json(
-        { error: 'User email required' },
-        { status: 401 }
-      );
-    }
-
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
+    const generatedDeviceIds: string[] = [];
+    
+    const data = Array.from({ length: numberOfDevices }, (_, i) => {
+      const n = String(i + 1).padStart(4, "0"); // 0001~0010
+      generatedDeviceIds.push(`simdevice${n}`);
+      return {
+        deviceId: `simdevice${n}`,
+        deviceUuid: null, // No UUID assigned yet - will be assigned on WebSocket connect when device claims an ID
+      };
     });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Generate device IDs and create DeviceId entries (matching Python server logic)
-    const generatedDeviceIds = [];
+    await prisma.deviceId.createMany({ data });
     
-    for (let i = 0; i < numberOfDevices; i++) {
-      const deviceId = `simdevice${String(i + 1).padStart(4, '0')}`;
-      generatedDeviceIds.push(deviceId);
-      
-      // Create DeviceId entry (without UUID assigned yet - will be assigned on WebSocket connect)
-      try {
-        await prisma.deviceId.create({
-          data: {
-            deviceId,
-            deviceUuid: null,
-          },
-        });
-        // Later on we will connect to IoT Hub and create actual device registrations.
-        
-      } catch (error) {
-        // If device already exists, continue
-        logInfo('Device already exists, skipping', { deviceId });
-      }
-    }
-
     return NextResponse.json({
       message: `Successfully generated ${numberOfDevices} device IDs`,
       generated_device_ids: generatedDeviceIds,

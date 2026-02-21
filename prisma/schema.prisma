@@ -116,8 +116,8 @@ model DeviceCommand {
 
 model DeviceId {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  deviceId  String   @unique
-  deviceUuid String?  @unique
+  deviceId  String   
+  deviceUuid String?  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

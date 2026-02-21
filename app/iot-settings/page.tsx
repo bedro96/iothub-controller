@@ -37,6 +37,35 @@ export default function IoTSettingsPage() {
   })
 
   const [saved, setSaved] = useState(false)
+  const [generating, setGenerating] = useState(false)
+
+  const handleGenerateDevices = async (count = 1000) => {
+    if (!confirm(`Generate ${count} simulated devices? This may take a while.`)) return
+    try {
+      setGenerating(true)
+      await ensureCsrf()
+      const resp = await fetchWithCsrf(`/api/devices/generate/${count}`, {
+        method: 'POST',
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: 'Failed' }))
+        alert(err.error || 'Failed to generate devices')
+        return
+      }
+      const data = await resp.json().catch(() => ({}))
+      alert(`Generated ${data.generated || count} devices`)
+      // update issued_out_number_of_devices if present
+      setDeviceMapping(prev => ({
+        ...prev,
+        issued_out_number_of_devices: String(Number(prev.issued_out_number_of_devices || '0') + count),
+      }))
+    } catch (e) {
+      console.error(e)
+      alert('Error generating devices')
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   const handleSaveSettings = async () => {
     await ensureCsrf()
@@ -52,7 +81,7 @@ export default function IoTSettingsPage() {
       }).catch((err: Error) => {
         console.error(`Failed to save setting ${key}:`, err)
       })
-      if (statsResponse.ok) {
+      if (statsResponse && statsResponse.ok) {
         const data = await statsResponse.json()
         setDeviceSettings(prev => ({ ...prev, [key.toLocaleLowerCase()]: data.value }))
       }
@@ -69,7 +98,7 @@ export default function IoTSettingsPage() {
       }).catch((err: Error) => {
         console.error(`Failed to save setting ${key}:`, err)
       })
-      if(statsResponse.ok) {
+      if(statsResponse && statsResponse.ok) {
         const data = await statsResponse.json()
         setIotServerSettings(prev => ({ ...prev, [key.toLocaleLowerCase()]: data.value }))
       }
@@ -162,13 +191,13 @@ export default function IoTSettingsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="max_retry_timeout">Max Retry Timeout (seconds)</Label>
+                  <Label htmlFor="max_retry">Max Retry Timeout (seconds)</Label>
                   <Input
-                    id="max_retry_timeout"
+                    id="max_retry"
                     type="number"
                     value={deviceSettings.max_retry}
                     onChange={(e) =>
-                      setDeviceSettings({ ...deviceSettings, max_retry_timeout: e.target.value })
+                      setDeviceSettings({ ...deviceSettings, max_retry: e.target.value })
                     }
                   />
                 </div>
@@ -245,10 +274,11 @@ export default function IoTSettingsPage() {
                   <Label htmlFor="reset_mapping_table">Reset Mapping Table</Label>
                   <HoverCard openDelay={10} closeDelay={100}>
                     <HoverCardTrigger asChild>
-                      <Button variant="outline" onClick={(e) => {
-                        e.preventDefault()
-                        }}>
+                      <Button variant="outline" onClick={() => handleGenerateDevices(10)}
+                      disabled={generating}>
+                        
                         1. Fill-out Table for first time.
+                        {generating ? 'Generating...' : 'Generate 1000 Devices'}
                       </Button>
                     </HoverCardTrigger>
                       <HoverCardContent className="flex w-64 flex-col gap-0.5">
