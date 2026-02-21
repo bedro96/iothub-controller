@@ -84,13 +84,7 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center">
-          <h2 className="text-4xl font-bold mb-4">
-            Welcome to IoTHub Controller
-          </h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            A modern IoT device management system built with Next.js 16
-          </p>
-          
+          <h4 className="text-2xl font-bold mb-4">Welcome to IoTHub Controller</h4>
           {!user && (
             <div className="flex gap-4 justify-center">
               <Button size="lg" asChild>
@@ -101,13 +95,8 @@ export default function Home() {
               </Button>
             </div>
           )}
-
           {user && (
             <div className="mt-8">
-              <h3 className="text-2xl font-semibold mb-4">Your Dashboard</h3>
-              <p className="text-muted-foreground mb-8">
-                You are logged in as <strong>{user.email}</strong> ({user.role})
-              </p>
               <ChartAreaInteractive />
             </div>
           )}

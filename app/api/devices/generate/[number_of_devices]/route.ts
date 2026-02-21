@@ -55,6 +55,8 @@ export async function POST(
             deviceUuid: null,
           },
         });
+        // Later on we will connect to IoT Hub and create actual device registrations.
+        
       } catch (error) {
         // If device already exists, continue
         logInfo('Device already exists, skipping', { deviceId });

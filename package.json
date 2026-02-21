@@ -13,8 +13,7 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:push": "prisma db push",
-    "db:init": "tsx scripts/init-db.ts"
-    ,
+    "db:init": "tsx scripts/init-db.ts",
     "consumer": "cross-env NODE_ENV=development tsx scripts/start-iothub-consumer.ts"
   },
   "dependencies": {

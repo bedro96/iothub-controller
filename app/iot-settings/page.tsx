@@ -9,6 +9,11 @@ import { Label } from "@/components/ui/label"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Settings, Shield, Wifi, Database, Save, RefreshCw } from "lucide-react"
 import useCsrf from "@/components/hooks/useCsrf"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
 
 export default function IoTSettingsPage() {
   const { ensureCsrf, fetchWithCsrf } = useCsrf()
@@ -17,6 +22,11 @@ export default function IoTSettingsPage() {
     max_retry: "10",
     message_interval_seconds: "5",
     herd_ready: "false",
+  })
+
+  const [deviceMapping, setDeviceMapping] = useState({
+  issued_out_number_of_devices: "0",
+  next_device_id: "simdevice0001",
   })
 
   const [iotServerSettings, setIotServerSettings] = useState({
@@ -194,7 +204,98 @@ export default function IoTSettingsPage() {
             </CardContent>
           </Card>
 
-          
+          {/* DeviceMapping Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Device Mapping table Settings
+              </CardTitle>
+              <CardDescription>
+                Configure device mapping table settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="issued_out_number_of_devices">Issued Out Number of Devices</Label>
+                  <Input
+                    id="issued_out_number_of_devices"
+                    type="text"
+                    value={deviceMapping.issued_out_number_of_devices}
+                    onChange={(e) =>
+                      setDeviceMapping({ ...deviceMapping, issued_out_number_of_devices: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="next_device_id">Next Device ID</Label>
+                  <Input
+                    id="next_device_id"
+                    type="text"
+                    value={deviceMapping.next_device_id}
+                    onChange={(e) =>
+                      setDeviceMapping({ ...deviceMapping, next_device_id: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="reset_mapping_table">Reset Mapping Table</Label>
+                  <HoverCard openDelay={10} closeDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <Button variant="outline" onClick={(e) => {
+                        e.preventDefault()
+                        }}>
+                        1. Fill-out Table for first time.
+                      </Button>
+                    </HoverCardTrigger>
+                      <HoverCardContent className="flex w-64 flex-col gap-0.5">
+                        <div className="font-semibold">Mapping table fillout</div>
+                        <div>This will fill out the device mapping table with default values.</div>
+                        <div>Need to be done before starting device simulator </div>
+                        <div className="text-muted-foreground mt-1 text-xs">
+                          This only needs to be done once.
+                        </div>
+                      </HoverCardContent>
+                  </HoverCard>
+                  <HoverCard openDelay={10} closeDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <Button variant="outline" onClick={(e) => {
+                        e.preventDefault()
+                        }}>
+                        2. Reset Mapping table for new simulation project
+                      </Button>
+                    </HoverCardTrigger>
+                      <HoverCardContent className="flex w-64 flex-col gap-0.5">
+                        <div className="font-semibold">Mapping table reset</div>
+                        <div>This will reset device mapping table. Device ID will be given out starting from 0001</div>
+                        <div className="text-muted-foreground mt-1 text-xs">
+                          Click with caution.
+                        </div>
+                      </HoverCardContent>
+                  </HoverCard>
+
+                </div>
+                <div>
+                  <Label htmlFor="herd_ready">Herd Ready</Label>
+                  <Input
+                    id="herd_ready"
+                    type="text"
+                    value={deviceSettings.herd_ready}
+                    onChange={(e) =>
+                      setDeviceSettings({ ...deviceSettings, herd_ready: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Set to "true" to enable herd mode for device simulator
+                  </p>
+                </div>
+              </div>
+              
+            </CardContent>
+          </Card>          
 
           {/* Connection String Settings */}
           <Card>

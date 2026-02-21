@@ -52,20 +52,20 @@ export async function POST(
       connectionManager.removeConnection(devUuid);
     }
 
-    // Delete device mappings first
-    await prisma.deviceMapping.deleteMany({
-      where: { deviceId: device_id },
-    });
+    // // Delete device mappings first
+    // await prisma.deviceMapping.deleteMany({
+    //   where: { deviceId: device_id },
+    // });
 
-    // Delete device commands
-    await prisma.deviceCommand.deleteMany({
-      where: { deviceId: device_id },
-    });
+    // // Delete device commands
+    // await prisma.deviceCommand.deleteMany({
+    //   where: { deviceId: device_id },
+    // });
 
-    // Delete the device
-    await prisma.device.delete({
-      where: { id: device_id },
-    });
+    // // Delete the device
+    // await prisma.device.delete({
+    //   where: { id: device_id },
+    // });
 
     return NextResponse.json({
       message: 'Device deleted successfully',
