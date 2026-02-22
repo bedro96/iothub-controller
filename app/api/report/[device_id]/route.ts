@@ -24,7 +24,7 @@ export async function POST(
     const ts = body.ts || new Date().toISOString();
 
     // Store telemetry data
-    await (prisma as any).telemetry.create({
+    await prisma.telemetry.create({
       data: {
         deviceId,
         type,

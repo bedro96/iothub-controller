@@ -35,7 +35,6 @@ export async function POST(
     const device = await prisma.device.findFirst({
       where: {
         id: device_id,
-        userId: user.id,
       },
     });
 

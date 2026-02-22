@@ -25,7 +25,6 @@ export async function POST(
     const device = await prisma.device.findFirst({
       where: ({
         uuid,
-        userId: user.id,
       } as any),
     });
 
@@ -45,13 +44,12 @@ export async function POST(
     }
 
     // Create command record
-    const deviceCommand = await (prisma as any).deviceCommand.create({
+    const deviceCommand = await prisma.deviceCommand.create({
       data: {
         command: action,
         payload: payload || {},
         uuid,
         deviceId: device.id,
-        userId: user.id,
         status: 'sent',
         broadcast: false,
       },
@@ -74,7 +72,7 @@ export async function POST(
 
     if (!sent) {
       // Update command status to failed
-      await (prisma as any).deviceCommand.update({
+      await prisma.deviceCommand.update({
         where: { id: deviceCommand.id },
         data: { status: 'failed' },
       });

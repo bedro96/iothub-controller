@@ -329,7 +329,8 @@ app.prepare().then(() => {
                 correlationId: message.id || '',
                 status: 'received',
               });
-
+              // Need to save this report data to the database or process it as needed. For now, just acknowledge receipt.
+              
               ws.send(envelope.toJSON());
               logInfo('Report acknowledged', {
                 uuid,
