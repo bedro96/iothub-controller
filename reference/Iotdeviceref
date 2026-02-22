@@ -1,0 +1,93 @@
+Azure IoT Hub에 디바이스를 등록하는 TypeScript 코드입니다.
+패키지 설치
+npm install azure-iothub dotenv
+npm install -D typescript @types/node ts-node
+코드
+import { Registry, Device } from "azure-iothub";
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
+async function registerDevice(deviceId: string): Promise<void> {
+  const connectionString = process.env.IOTHUB_CONNECTION_STRING;
+
+  if (!connectionString) {
+    throw new Error("IOTHUB_CONNECTION_STRING이 환경변수에 없습니다.");
+  }
+
+  // Registry 클라이언트 생성
+  const registry = Registry.fromConnectionString(connectionString);
+
+  // 등록할 디바이스 정의
+  const device: Device = {
+    deviceId,
+    status: "enabled",
+    authentication: {
+      symmetricKey: {
+        primaryKey: null,   // null이면 IoT Hub가 자동 생성
+        secondaryKey: null,
+      },
+      type: "sas",
+    },
+  };
+
+  try {
+    // 디바이스 등록
+    const result = await registry.create(device);
+    const createdDevice = result.responseBody;
+
+    console.log("✅ 디바이스 등록 성공!");
+    console.log("Device ID:", createdDevice.deviceId);
+    console.log(
+      "Primary Key:",
+      createdDevice.authentication?.symmetricKey?.primaryKey
+    );
+    console.log(
+      "Secondary Key:",
+      createdDevice.authentication?.symmetricKey?.secondaryKey
+    );
+  } catch (err: any) {
+    if (err.message?.includes("DeviceAlreadyExists")) {
+      console.warn("⚠️ 이미 등록된 디바이스입니다:", deviceId);
+
+      // 이미 존재하면 기존 디바이스 정보 조회
+      const result = await registry.get(deviceId);
+      const existingDevice = result.responseBody;
+      console.log("기존 디바이스 Primary Key:", existingDevice.authentication?.symmetricKey?.primaryKey);
+    } else {
+      throw err;
+    }
+  }
+}
+
+// 실행
+const deviceId = process.argv[2] || "my-test-device";
+
+registerDevice(deviceId)
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error("❌ 오류 발생:", err.message);
+    process.exit(1);
+  });
+.env 파일
+IOTHUB_CONNECTION_STRING=HostName=<your-hub>.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=<your-key>
+실행
+# ts-node로 직접 실행
+npx ts-node registerDevice.ts my-device-001
+
+# 또는 컴파일 후 실행
+npx tsc && node dist/registerDevice.js my-device-001
+핵심 포인트
+항목
+설명
+Registry.fromConnectionString()
+IoT Hub 관리용 Registry 클라이언트 생성
+registry.create()
+디바이스 등록 (이미 있으면 에러)
+registry.get()
+기존 디바이스 정보 조회
+primaryKey: null
+IoT Hub가 SAS 키를 자동 생성
+Connection String
+iothubowner 또는 registryReadWrite 권한 필요
+Connection String 확인 방법: Azure Portal → IoT Hub → 보안 설정 → 공유 액세스 정책 → iothubowner
